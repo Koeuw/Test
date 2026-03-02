@@ -11,7 +11,7 @@
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ==========================================
-        // 1. COLLE TES CLÉS FIREBASE ICI
+        // 1. CONFIGURATION FIREBASE (METS TES CLÉS ICI)
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDd-9vJ_5q58hF6RIdM4Fsx6VIQcNe9zNc",
@@ -27,230 +27,146 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Variables d'état globales
-        let userProfile = { darkMode: false, goalCal: 2000, goalP: 150, goalG: 200, goalL: 60, goalS: 50, goalSalt: 5, goalVit: 100 };
+        // ==========================================
+        // 2. INITIALISATION GLOBALE (POUR ÉVITER LES ERREURS)
+        // ==========================================
+        window.userProfile = { 
+            darkMode: false, 
+            goalCal: 2000, goalP: 150, goalG: 200, goalL: 60, goalS: 50, goalSalt: 5, goalVit: 100,
+            currentCal: 2000, currentP: 150, currentG: 200, currentL: 60, currentS: 50, currentSalt: 5, currentVit: 100
+        };
 
-        // Surveillance de l'utilisateur
+        // Surveillance de la connexion
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                const docRef = doc(db, "users", user.uid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    userProfile = { ...userProfile, ...docSnap.data() };
+                try {
+                    const docSnap = await getDoc(doc(db, "users", user.uid));
+                    if (docSnap.exists()) {
+                        window.userProfile = { ...window.userProfile, ...docSnap.data() };
+                    }
+                    applyUI();
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('main-app').classList.remove('hidden');
+                } catch (e) {
+                    console.error("Erreur de chargement Firestore:", e);
                 }
-                applyAllSettings();
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('main-app').classList.add('hidden');
             }
         });
 
-        // Fonctions de sauvegarde
-        window.saveUserData = async (data) => {
-            const user = auth.currentUser;
-            if (user) {
-                userProfile = { ...userProfile, ...data };
-                await setDoc(doc(db, "users", user.uid), userProfile, { merge: true });
-            }
-        };
-
+        // Fonctions Globales
         window.login = () => {
-            const e = document.getElementById('email').value;
-            const p = document.getElementById('password').value;
-            signInWithEmailAndPassword(auth, e, p).catch(err => alert("Erreur : " + err.message));
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            signInWithEmailAndPassword(auth, email, pass).catch(err => alert("Erreur : " + err.message));
         };
+
         window.logout = () => signOut(auth);
+
+        window.toggleTheme = async () => {
+            window.userProfile.darkMode = !window.userProfile.darkMode;
+            applyUI();
+            const user = auth.currentUser;
+            if (user) await setDoc(doc(db, "users", user.uid), window.userProfile, { merge: true });
+        };
+
+        window.addFood = async () => {
+            const p = parseInt(document.getElementById('in-p').value) || 0;
+            const g = parseInt(document.getElementById('in-g').value) || 0;
+            const l = parseInt(document.getElementById('in-l').value) || 0;
+            const s = parseInt(document.getElementById('in-s').value) || 0;
+            const salt = parseFloat(document.getElementById('in-salt').value) || 0;
+            const vit = parseInt(document.getElementById('in-vit').value) || 0;
+
+            window.userProfile.currentCal -= (p*4 + g*4 + l*9);
+            window.userProfile.currentP -= p;
+            window.userProfile.currentG -= g;
+            window.userProfile.currentL -= l;
+            window.userProfile.currentS -= s;
+            window.userProfile.currentSalt -= salt;
+            window.userProfile.currentVit -= vit;
+
+            applyUI();
+            const user = auth.currentUser;
+            if (user) await setDoc(doc(db, "users", user.uid), window.userProfile, { merge: true });
+            
+            ['in-p','in-g','in-l','in-s','in-salt','in-vit'].forEach(id => document.getElementById(id).value = "");
+        };
+
+        function applyUI() {
+            const isDark = window.userProfile.darkMode;
+            document.body.className = isDark ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900";
+            
+            const cards = document.querySelectorAll('.card-element');
+            cards.forEach(card => {
+                card.style.backgroundColor = isDark ? "#1e293b" : "#ffffff";
+                card.style.borderColor = isDark ? "#334155" : "#f1f5f9";
+            });
+
+            document.getElementById('display-cal').innerText = window.userProfile.currentCal;
+            document.getElementById('display-p').innerText = window.userProfile.currentP;
+            document.getElementById('display-g').innerText = window.userProfile.currentG;
+            document.getElementById('display-l').innerText = window.userProfile.currentL;
+            document.getElementById('display-s').innerText = window.userProfile.currentS;
+            document.getElementById('display-salt').innerText = window.userProfile.currentSalt.toFixed(1);
+            document.getElementById('display-vit').innerText = window.userProfile.currentVit;
+            document.getElementById('theme-icon').innerText = isDark ? '☀️' : '🌙';
+        }
     </script>
-
-    <style>
-        .dark { background-color: #0f172a !important; color: #f8fafc !important; }
-        .dark .card { background-color: #1e293b !important; border-color: #334155 !important; color: white; }
-        .dark input, .dark select { background-color: #334155 !important; color: white !important; border-color: #475569 !important; }
-        .transition-all { transition: all 0.3s ease; }
-    </style>
 </head>
-<body id="app-body" class="bg-slate-50 font-sans pb-24 transition-all">
+<body class="transition-colors duration-500 pb-20">
 
-    <div id="login-screen" class="p-8 mt-20 max-w-sm mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 card">
-        <h2 class="text-3xl font-black mb-2">Nutrition Pro.</h2>
-        <p class="text-slate-400 mb-8 text-sm">Votre dashboard privé</p>
-        <input type="email" id="email" placeholder="Email" class="w-full bg-slate-50 p-4 rounded-2xl mb-4 outline-none border border-transparent focus:border-black">
-        <input type="password" id="password" placeholder="Mot de passe" class="w-full bg-slate-50 p-4 rounded-2xl mb-8 outline-none border border-transparent focus:border-black">
-        <button onclick="login()" class="w-full bg-black text-white p-5 rounded-2xl font-bold active:scale-95 transition-all">SE CONNECTER</button>
+    <div id="login-screen" class="p-8 mt-20 max-w-sm mx-auto bg-white rounded-3xl shadow-xl card-element border text-black">
+        <h2 class="text-3xl font-black mb-6">Nutrition.</h2>
+        <input type="email" id="email" placeholder="Email" class="w-full bg-slate-100 p-4 rounded-2xl mb-4 outline-none">
+        <input type="password" id="password" placeholder="Mot de passe" class="w-full bg-slate-100 p-4 rounded-2xl mb-8 outline-none">
+        <button onclick="login()" class="w-full bg-blue-600 text-white p-5 rounded-2xl font-bold active:scale-95 transition-all">ENTRER</button>
     </div>
 
     <div id="main-app" class="hidden max-w-md mx-auto p-4">
-        
-        <header class="flex justify-between items-center mb-6 px-2">
-            <h1 class="text-xl font-black italic tracking-tighter">ULTRA TRACKER</h1>
-            <button onclick="toggleTheme()" class="w-10 h-10 bg-white shadow-sm rounded-full flex items-center justify-center card text-lg" id="theme-icon">🌙</button>
+        <header class="flex justify-between items-center mb-6">
+            <h1 class="text-xl font-black italic">ULTRA TRACKER</h1>
+            <button onclick="toggleTheme()" id="theme-icon" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow card-element border">🌙</button>
         </header>
 
-        <div id="section-tracker">
-            <div class="bg-white p-8 rounded-[2.5rem] shadow-sm mb-6 border border-slate-100 text-center card relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-1.5 bg-slate-100">
-                    <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-700" style="width: 0%"></div>
-                </div>
-                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2">Calories Restantes</p>
-                <div id="display-cal" class="text-6xl font-black tracking-tighter">2000</div>
-            </div>
+        <div class="p-8 rounded-[2.5rem] shadow-sm mb-6 border text-center card-element">
+            <p class="text-slate-400 text-[10px] font-black uppercase mb-2 tracking-widest">Restant</p>
+            <div id="display-cal" class="text-6xl font-black tracking-tighter">2000</div>
+        </div>
 
-            <div class="grid grid-cols-2 gap-3 mb-6">
-                <div class="bg-white p-4 rounded-3xl border border-slate-100 card">
-                    <p class="text-[9px] font-black text-orange-400 uppercase">Protéines</p>
-                    <div class="font-black text-xl"><span id="display-p">150</span>g</div>
-                </div>
-                <div class="bg-white p-4 rounded-3xl border border-slate-100 card">
-                    <p class="text-[9px] font-black text-blue-400 uppercase">Glucides / Sucre</p>
-                    <div class="font-black text-xl"><span id="display-g">200</span>g / <span id="display-s" class="text-blue-300">50</span>g</div>
-                </div>
-                <div class="bg-white p-4 rounded-3xl border border-slate-100 card">
-                    <p class="text-[9px] font-black text-yellow-500 uppercase">Lipides / Sel</p>
-                    <div class="font-black text-xl"><span id="display-l">60</span>g / <span id="display-salt" class="text-yellow-300">5</span>g</div>
-                </div>
-                <div class="bg-white p-4 rounded-3xl border border-slate-100 card">
-                    <p class="text-[9px] font-black text-purple-400 uppercase">Vitamines</p>
-                    <div class="font-black text-xl"><span id="display-vit">100</span>%</div>
-                </div>
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="p-4 rounded-3xl border card-element">
+                <p class="text-[9px] font-bold text-orange-400 uppercase">Protéines</p>
+                <div class="font-black text-xl"><span id="display-p">150</span>g</div>
             </div>
-
-            <div class="bg-slate-900 p-6 rounded-[2.5rem] text-white shadow-2xl">
-                <h3 class="text-[10px] font-black uppercase tracking-widest mb-4 text-slate-500">Ajouter un repas</h3>
-                <div class="grid grid-cols-3 gap-2 mb-4">
-                    <input type="number" id="add-p" placeholder="P" class="bg-slate-800 p-3 rounded-xl text-sm outline-none border border-transparent focus:border-orange-500">
-                    <input type="number" id="add-g" placeholder="G" class="bg-slate-800 p-3 rounded-xl text-sm outline-none border border-transparent focus:border-blue-500">
-                    <input type="number" id="add-l" placeholder="L" class="bg-slate-800 p-3 rounded-xl text-sm outline-none border border-transparent focus:border-yellow-500">
-                    <input type="number" id="add-s" placeholder="Sucre" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                    <input type="number" id="add-salt" placeholder="Sel" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                    <input type="number" id="add-vit" placeholder="Vit%" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                </div>
-                <button onclick="logFood()" class="w-full bg-white text-black p-4 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">Enregistrer</button>
+            <div class="p-4 rounded-3xl border card-element">
+                <p class="text-[9px] font-bold text-blue-400 uppercase">Sucre / Glu</p>
+                <div class="font-black text-xl"><span id="display-g">200</span>g / <span id="display-s" class="opacity-50 text-sm">50</span>g</div>
+            </div>
+            <div class="p-4 rounded-3xl border card-element">
+                <p class="text-[9px] font-bold text-yellow-500 uppercase">Lipides / Sel</p>
+                <div class="font-black text-xl"><span id="display-l">60</span>g / <span id="display-salt" class="opacity-50 text-sm">5</span>g</div>
+            </div>
+            <div class="p-4 rounded-3xl border card-element">
+                <p class="text-[9px] font-bold text-purple-500 uppercase">Vitamines %</p>
+                <div class="font-black text-xl"><span id="display-vit">100</span>%</div>
             </div>
         </div>
 
-        <div id="section-settings" class="hidden animate-fade-in">
-            <div class="bg-white p-6 rounded-[2rem] shadow-sm mb-6 border border-slate-100 card">
-                <h3 class="text-[10px] font-black uppercase mb-4 text-blue-500">Calculateur Scientifique</h3>
-                <div class="space-y-3">
-                    <div class="flex gap-2">
-                        <select id="calc-gender" class="flex-1 p-3 rounded-xl text-sm font-bold bg-slate-50 border-none">
-                            <option value="H">Homme</option>
-                            <option value="F">Femme</option>
-                        </select>
-                        <input type="number" id="calc-age" placeholder="Âge" class="w-20 p-3 rounded-xl text-sm font-bold bg-slate-50">
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="number" id="calc-w" placeholder="Poids (kg)" class="flex-1 p-3 rounded-xl text-sm font-bold bg-slate-50">
-                        <input type="number" id="calc-h" placeholder="Taille (cm)" class="flex-1 p-3 rounded-xl text-sm font-bold bg-slate-50">
-                    </div>
-                    <select id="calc-activity" class="w-full p-3 rounded-xl text-sm font-bold bg-slate-50 border-none">
-                        <option value="1.2">Sédentaire</option>
-                        <option value="1.375">Légèrement actif (1-2x/sem)</option>
-                        <option value="1.55">Modérément actif (3-4x/sem)</option>
-                        <option value="1.725">Très actif (5-6x/sem)</option>
-                    </select>
-                    <button onclick="runCalculation()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-black text-xs uppercase">Calculer & Sauvegarder</button>
-                </div>
+        <div class="bg-slate-900 p-6 rounded-[2.5rem] text-white space-y-3">
+            <div class="grid grid-cols-3 gap-2">
+                <input type="number" id="in-p" placeholder="Prot" class="bg-slate-800 p-2 rounded-lg text-xs outline-none">
+                <input type="number" id="in-g" placeholder="Glu" class="bg-slate-800 p-2 rounded-lg text-xs outline-none">
+                <input type="number" id="in-s" placeholder="Sucre" class="bg-slate-800 p-2 rounded-lg text-xs outline-none">
+                <input type="number" id="in-l" placeholder="Lip" class="bg-slate-800 p-2 rounded-lg text-xs outline-none">
+                <input type="number" id="in-salt" placeholder="Sel" class="bg-slate-800 p-2 rounded-lg text-xs outline-none">
+                <input type="number" id="in-vit" placeholder="Vit%" class="bg-slate-800 p-2 rounded-lg text-xs outline-none">
             </div>
-            
-            <button onclick="logout()" class="w-full text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-4">Déconnexion</button>
+            <button onclick="addFood()" class="w-full bg-white text-black p-4 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">Enregistrer le repas</button>
+            <button onclick="logout()" class="w-full text-slate-500 text-[10px] font-bold uppercase pt-2">Déconnexion</button>
         </div>
     </div>
-
-    <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[280px] bg-white/80 backdrop-blur-xl border border-slate-200/50 p-2 rounded-full shadow-2xl flex justify-around items-center z-50 card">
-        <button onclick="nav('tracker')" class="p-4 rounded-full transition-all" id="nav-tracker">📊</button>
-        <button onclick="nav('settings')" class="p-4 rounded-full transition-all" id="nav-settings">⚙️</button>
-    </nav>
-
-    <script>
-        function nav(target) {
-            document.getElementById('section-tracker').classList.toggle('hidden', target !== 'tracker');
-            document.getElementById('section-settings').classList.toggle('hidden', target !== 'settings');
-            document.getElementById('nav-tracker').style.backgroundColor = target === 'tracker' ? '#f1f5f9' : 'transparent';
-            document.getElementById('nav-settings').style.backgroundColor = target === 'settings' ? '#f1f5f9' : 'transparent';
-        }
-
-        function toggleTheme() {
-            const body = document.getElementById('app-body');
-            const isDark = body.classList.toggle('dark');
-            document.getElementById('theme-icon').innerText = isDark ? '☀️' : '🌙';
-            saveUserData({ darkMode: isDark });
-        }
-
-        function applyAllSettings() {
-            if(userProfile.darkMode) {
-                document.getElementById('app-body').classList.add('dark');
-                document.getElementById('theme-icon').innerText = '☀️';
-            }
-            document.getElementById('display-cal').innerText = userProfile.goalCal;
-            document.getElementById('display-p').innerText = userProfile.goalP;
-            document.getElementById('display-g').innerText = userProfile.goalG;
-            document.getElementById('display-l').innerText = userProfile.goalL;
-            document.getElementById('display-s').innerText = userProfile.goalS;
-            document.getElementById('display-salt').innerText = userProfile.goalSalt;
-            document.getElementById('display-vit').innerText = userProfile.goalVit;
-            updateProgress();
-        }
-
-        function logFood() {
-            const p = parseInt(document.getElementById('add-p').value) || 0;
-            const g = parseInt(document.getElementById('add-g').value) || 0;
-            const l = parseInt(document.getElementById('add-l').value) || 0;
-            const s = parseInt(document.getElementById('add-s').value) || 0;
-            const salt = parseFloat(document.getElementById('add-salt').value) || 0;
-            const vit = parseInt(document.getElementById('add-vit').value) || 0;
-            const c = (p * 4) + (g * 4) + (l * 9);
-
-            document.getElementById('display-cal').innerText -= c;
-            document.getElementById('display-p').innerText -= p;
-            document.getElementById('display-g').innerText -= g;
-            document.getElementById('display-s').innerText -= s;
-            document.getElementById('display-l').innerText -= l;
-            document.getElementById('display-salt').innerText = (parseFloat(document.getElementById('display-salt').innerText) - salt).toFixed(1);
-            document.getElementById('display-vit').innerText -= vit;
-
-            ['add-p','add-g','add-l','add-s','add-salt','add-vit'].forEach(id => document.getElementById(id).value = "");
-            updateProgress();
-        }
-
-        function runCalculation() {
-            const w = parseFloat(document.getElementById('calc-w').value);
-            const h = parseFloat(document.getElementById('calc-h').value);
-            const a = parseInt(document.getElementById('calc-age').value);
-            const g = document.getElementById('calc-gender').value;
-            const act = parseFloat(document.getElementById('calc-activity').value);
-
-            if(!w || !h || !a) return;
-
-            let bmr = (10 * w) + (6.25 * h) - (5 * a);
-            bmr = (g === 'H') ? bmr + 5 : bmr - 161;
-            const maintenance = Math.round(bmr * act);
-
-            const newSettings = {
-                goalCal: maintenance,
-                goalP: Math.round(w * 2),
-                goalL: Math.round(w * 0.9),
-                goalG: Math.round((maintenance - (w * 2 * 4 + w * 0.9 * 9)) / 4),
-                goalS: 50,
-                goalSalt: 5,
-                goalVit: 100
-            };
-
-            saveUserData(newSettings);
-            applyAllSettings();
-            nav('tracker');
-        }
-
-        function updateProgress() {
-            const current = parseInt(document.getElementById('display-cal').innerText);
-            const total = userProfile.goalCal;
-            const percent = Math.min(100, Math.max(0, ((total - current) / total) * 100));
-            document.getElementById('progress-bar').style.width = percent + '%';
-        }
-
-        nav('tracker');
-    </script>
 </body>
 </html>
