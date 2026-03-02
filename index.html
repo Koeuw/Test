@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Mon Coach Nutrition</title>
+    <title>Ma Nutrition Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+        // --- COLLE TES CLÉS ICI ---
         const firebaseConfig = {
             apiKey: "AIzaSyDd-9vJ_5q58hF6RIdM4Fsx6VIQcNe9zNc",
             authDomain: "test-bb0ab.firebaseapp.com",
@@ -17,64 +18,85 @@
             messagingSenderId: "845349088536",
             appId: "1:845349088536:web:9dea68916cfdc465b2826d",
             measurementId: "G-SVHDEZ1HX8"
-        };      
-        // ----------------------------------------
+        };
+        // --------------------------
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        // Gestion de la connexion
+        // Fonctions Globales
         window.login = () => {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
-            signInWithEmailAndPassword(auth, email, pass)
-                .catch(error => alert("Erreur : " + error.message));
+            signInWithEmailAndPassword(auth, email, pass).catch(err => alert("Erreur: " + err.message));
         };
-
         window.logout = () => signOut(auth);
 
-        // Surveillance de l'état (Connecté ou non)
         onAuthStateChanged(auth, (user) => {
-            if (user) {
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
-                document.getElementById('user-email').innerText = user.email;
-            } else {
-                document.getElementById('login-screen').classList.remove('hidden');
-                document.getElementById('main-app').classList.add('hidden');
-            }
+            document.getElementById('login-screen').classList.toggle('hidden', !!user);
+            document.getElementById('main-app').classList.toggle('hidden', !user);
         });
     </script>
 </head>
-<body class="bg-slate-50 p-4">
+<body class="bg-gray-50 font-sans">
 
-    <div id="login-screen" class="max-w-md mx-auto mt-20 bg-white p-8 rounded-3xl shadow-xl">
-        <h2 class="text-3xl font-black mb-6 text-slate-800">Bonjour.</h2>
-        <input type="email" id="email" placeholder="Email" class="w-full border-2 border-slate-100 p-4 rounded-2xl mb-4 focus:border-green-500 outline-none transition-all">
-        <input type="password" id="password" placeholder="Mot de passe" class="w-full border-2 border-slate-100 p-4 rounded-2xl mb-6 focus:border-green-500 outline-none transition-all">
-        <button onclick="login()" class="w-full bg-green-500 text-white p-4 rounded-2xl font-bold shadow-lg shadow-green-200 active:scale-95 transition-transform">Entrer</button>
+    <div id="login-screen" class="p-8 mt-20 max-w-sm mx-auto bg-white rounded-3xl shadow-xl">
+        <h2 class="text-2xl font-black mb-6 text-gray-800">Connexion</h2>
+        <input type="email" id="email" placeholder="Email" class="w-full border p-4 rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-500">
+        <input type="password" id="password" placeholder="Mot de passe" class="w-full border p-4 rounded-xl mb-6 outline-none focus:ring-2 focus:ring-blue-500">
+        <button onclick="login()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold uppercase tracking-wide">Entrer</button>
     </div>
 
-    <div id="main-app" class="hidden max-w-md mx-auto">
-        <div class="flex justify-between items-center mb-8">
-            <div>
-                <p class="text-xs text-slate-400">Connecté en tant que</p>
-                <p id="user-email" class="font-bold text-slate-700"></p>
+    <div id="main-app" class="hidden p-4 max-w-md mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-xl font-black text-gray-800 tracking-tight">MA NUTRITION</h1>
+            <button onclick="logout()" class="text-xs font-bold text-gray-400 uppercase">Quitter</button>
+        </div>
+
+        <div class="bg-white p-6 rounded-[2rem] shadow-sm mb-6 border border-gray-100 text-center">
+            <p class="text-gray-400 text-sm font-bold uppercase tracking-widest">Calories restantes</p>
+            <div id="cal-rem" class="text-6xl font-black text-gray-900 my-2">2200</div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mb-8">
+            <div class="bg-orange-50 p-4 rounded-2xl text-center border border-orange-100">
+                <p class="text-[10px] font-bold text-orange-400 uppercase">Protéines</p>
+                <div class="text-lg font-black text-orange-700"><span id="p-rem">150</span>g</div>
             </div>
-            <button onclick="logout()" class="bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-500">Quitter</button>
+            <div class="bg-blue-50 p-4 rounded-2xl text-center border border-blue-100">
+                <p class="text-[10px] font-bold text-blue-400 uppercase">Glucides</p>
+                <div class="text-lg font-black text-blue-700"><span id="g-rem">250</span>g</div>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-2xl text-center border border-yellow-100">
+                <p class="text-[10px] font-bold text-yellow-500 uppercase">Lipides</p>
+                <div class="text-lg font-black text-yellow-700"><span id="l-rem">70</span>g</div>
+            </div>
         </div>
 
-        <div class="bg-white p-8 rounded-[2.5rem] shadow-sm mb-6 text-center border border-slate-100">
-            <span class="text-slate-400 text-sm font-medium">Besoins du jour</span>
-            <div id="remaining" class="text-6xl font-black text-slate-800 my-4">2200</div>
-            <p class="text-slate-400">kcal restantes</p>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-            <button class="bg-white p-6 rounded-3xl border-2 border-slate-100 font-bold text-slate-700 active:bg-slate-50">+100</button>
-            <button class="bg-green-500 p-6 rounded-3xl font-bold text-white shadow-lg shadow-green-100 active:scale-95 transition-all">+500</button>
+        <div class="space-y-3">
+            <p class="text-xs font-bold text-gray-400 uppercase ml-2">Ajout rapide</p>
+            <button onclick="addFood(150, 25, 5, 2)" class="w-full bg-white p-4 rounded-2xl border border-gray-200 flex justify-between items-center active:scale-95 transition-transform">
+                <span class="font-bold text-gray-700">🍗 Poulet (150g)</span>
+                <span class="text-xs text-gray-400">25g P • 2g L</span>
+            </button>
+            <button onclick="addFood(200, 4, 45, 1)" class="w-full bg-white p-4 rounded-2xl border border-gray-200 flex justify-between items-center active:scale-95 transition-transform">
+                <span class="font-bold text-gray-700">🍚 Riz (200g)</span>
+                <span class="text-xs text-gray-400">45g G • 4g P</span>
+            </button>
+            <button onclick="addFood(500, 20, 60, 20)" class="w-full bg-white p-4 rounded-2xl border border-gray-200 flex justify-between items-center active:scale-95 transition-transform">
+                <span class="font-bold text-gray-700">🍔 Repas complet</span>
+                <span class="text-xs text-gray-400">500 kcal</span>
+            </button>
         </div>
     </div>
 
+    <script>
+        function addFood(cal, p, g, l) {
+            document.getElementById('cal-rem').innerText -= cal;
+            document.getElementById('p-rem').innerText -= p;
+            document.getElementById('g-rem').innerText -= g;
+            document.getElementById('l-rem').innerText -= l;
+        }
+    </script>
 </body>
 </html>
