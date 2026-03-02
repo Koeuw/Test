@@ -24,29 +24,94 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Liste complète des nutriments pour la gestion automatique
-        const MICROS_KEYS = [
-            'fiber', 'omg3', 'omg6', 'vitA', 'vitD', 'vitE', 'vitK', 'vitC', 
-            'b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'b12',
-            'ca', 'mg', 'k', 'na', 'phos', 'cl', 'fe', 'zn', 'cu', 'iode', 'sel', 'mn', 'cr', 'mo', 'fluor'
+        // Liste de tes 28 nutriments (ajoute ceux qui manquent ici)
+        const microsList = [
+            { id: 'Fiber', name: 'Fibres', unit: 'g', color: 'text-green-600' },
+            { id: 'Omega', name: 'Oméga', unit: 'g', color: 'text-teal-600' },
+            { id: 'Iron', name: 'Fer', unit: 'mg', color: 'text-red-500' },
+            { id: 'Mag', name: 'Magnésium', unit: 'mg', color: 'text-purple-500' },
+            { id: 'VitC', name: 'Vitamine C', unit: 'mg', color: 'text-orange-500' },
+            { id: 'VitD', name: 'Vitamine D', unit: 'µg', color: 'text-yellow-600' },
+            { id: 'Zinc', name: 'Zinc', unit: 'mg', color: 'text-blue-400' },
+            { id: 'Calc', name: 'Calcium', unit: 'mg', color: 'text-slate-500' }
         ];
 
         window.userProfile = { 
-            darkMode: false, lastReset: new Date().toLocaleDateString(),
+            darkMode: false, 
             goalCal: 2000, goalP: 150, goalG: 200, goalL: 60, goalWater: 2.5,
             currentCal: 2000, currentP: 150, currentG: 200, currentL: 60, currentWater: 0
         };
-        // Initialisation des micros à 0
-        MICROS_KEYS.forEach(k => window.userProfile[k] = 0);
+        // Initialisation automatique des micros dans le profil
+        microsList.forEach(m => {
+            window.userProfile[`goal${m.id}`] = 100; // Valeur par défaut
+            window.userProfile[`current${m.id}`] = 0;
+        });
+
+        window.applyUI = () => {
+            const p = window.userProfile;
+            document.body.className = p.darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900";
+            
+            // Macros de base
+            document.getElementById('d-cal').innerText = Math.round(p.currentCal);
+            document.getElementById('d-p').innerText = Math.round(p.currentP);
+            document.getElementById('d-g').innerText = Math.round(p.currentG);
+            document.getElementById('d-l').innerText = Math.round(p.currentL);
+            document.getElementById('d-water').innerText = p.currentWater.toFixed(2);
+            
+            // Affichage DYNAMIQUE des micros (plus besoin de modifier le HTML)
+            const container = document.getElementById('micros-container');
+            container.innerHTML = microsList.map(m => `
+                <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center shadow-sm">
+                    <p class="text-[10px] font-bold ${m.color} uppercase">${m.name}</p>
+                    <div class="font-black italic">${p[`current${m.id}`].toFixed(1)} / ${p[`goal${m.id}`]}${m.unit}</div>
+                </div>
+            `).join('');
+
+            // Génération dynamique des INPUTS dans le formulaire
+            const inputContainer = document.getElementById('micros-inputs');
+            inputContainer.innerHTML = microsList.map(m => `
+                <input type="number" id="in-${m.id}" placeholder="${m.name} (${m.unit})" class="bg-slate-800 p-3 rounded-xl text-xs outline-none text-white">
+            `).join('');
+        };
+
+        window.saveData = async () => {
+            const user = auth.currentUser;
+            if (user) await setDoc(doc(db, "users", user.uid), window.userProfile);
+        };
+
+        window.addFood = () => {
+            const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
+            const p = getVal('in-p'), g = getVal('in-g'), l = getVal('in-l');
+            
+            window.userProfile.currentCal -= (p*4 + g*4 + l*9);
+            window.userProfile.currentP -= p; 
+            window.userProfile.currentG -= g; 
+            window.userProfile.currentL -= l;
+            
+            // Ajout dynamique pour tous les micros
+            microsList.forEach(m => {
+                window.userProfile[`current${m.id}`] += getVal(`in-${m.id}`);
+                document.getElementById(`in-${m.id}`).value = ""; // Reset champ
+            });
+
+            window.applyUI(); window.saveData();
+            ['in-p','in-g','in-l'].forEach(id => document.getElementById(id).value = "");
+        };
+
+        // --- Fonctions Auth & Nav inchangées mais nécessaires ---
+        window.login = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Erreur d'identifiants."));
+        window.logout = () => signOut(auth);
+        window.nav = (target) => {
+            document.getElementById('sec-tracker').classList.toggle('hidden', target !== 'tracker');
+            document.getElementById('sec-calc').classList.toggle('hidden', target !== 'calc');
+        };
+        window.addWater = () => { window.userProfile.currentWater += 0.25; window.applyUI(); window.saveData(); };
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const docSnap = await getDoc(doc(db, "users", user.uid));
-                if (docSnap.exists()) {
-                    window.userProfile = { ...window.userProfile, ...docSnap.data() };
-                    checkDailyReset();
-                }
-                applyUI();
+                if (docSnap.exists()) window.userProfile = { ...window.userProfile, ...docSnap.data() };
+                window.applyUI();
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
             } else {
@@ -54,85 +119,6 @@
                 document.getElementById('main-app').classList.add('hidden');
             }
         });
-
-        function checkDailyReset() {
-            const today = new Date().toLocaleDateString();
-            if (window.userProfile.lastReset !== today) {
-                window.userProfile.currentCal = window.userProfile.goalCal;
-                window.userProfile.currentP = window.userProfile.goalP;
-                window.userProfile.currentG = window.userProfile.goalG;
-                window.userProfile.currentL = window.userProfile.goalL;
-                window.userProfile.currentWater = 0;
-                MICROS_KEYS.forEach(k => window.userProfile[k] = 0);
-                window.userProfile.lastReset = today;
-                saveData();
-            }
-        }
-
-        window.saveData = async () => {
-            const user = auth.currentUser;
-            if (user) await setDoc(doc(db, "users", user.uid), window.userProfile);
-        };
-
-        window.login = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Erreur de connexion"));
-        window.logout = () => signOut(auth);
-        window.nav = (t) => {
-            document.getElementById('sec-tracker').classList.toggle('hidden', t !== 'tracker');
-            document.getElementById('sec-calc').classList.toggle('hidden', t !== 'calc');
-        };
-
-        window.addWater = () => { window.userProfile.currentWater += 0.25; applyUI(); saveData(); };
-
-        window.addFood = () => {
-            const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
-            const p = getVal('in-p'), g = getVal('in-g'), l = getVal('in-l');
-            
-            window.userProfile.currentCal -= (p*4 + g*4 + l*9);
-            window.userProfile.currentP -= p; window.userProfile.currentG -= g; window.userProfile.currentL -= l;
-            
-            MICROS_KEYS.forEach(k => {
-                window.userProfile[k] += getVal('in-' + k);
-                document.getElementById('in-' + k).value = ""; // Clear
-            });
-
-            ['in-p','in-g','in-l'].forEach(id => document.getElementById(id).value = "");
-            applyUI(); saveData();
-        };
-
-        window.runCalc = () => {
-            const w = parseFloat(document.getElementById('c-w').value);
-            const h = parseFloat(document.getElementById('c-h').value);
-            const a = parseInt(document.getElementById('c-a').value);
-            const act = parseFloat(document.getElementById('c-act').value);
-            const goal = parseInt(document.getElementById('c-goal').value);
-            if(!w || !h || !a) return;
-
-            let tdee = Math.round(((10 * w) + (6.25 * h) - (5 * a) + 5) * act) + goal;
-            window.userProfile.goalCal = tdee; window.userProfile.currentCal = tdee;
-            const protRatio = goal < 0 ? 2.2 : 2.0;
-            window.userProfile.goalP = Math.round(w * protRatio); window.userProfile.currentP = window.userProfile.goalP;
-            window.userProfile.goalL = Math.round(w * 0.9); window.userProfile.currentL = window.userProfile.goalL;
-            window.userProfile.goalG = Math.round((tdee - (window.userProfile.goalP*4 + window.userProfile.goalL*9))/4);
-            window.userProfile.currentG = window.userProfile.goalG;
-            
-            applyUI(); saveData(); nav('tracker');
-        };
-
-        function applyUI() {
-            const p = window.userProfile;
-            document.body.className = p.darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900";
-            document.getElementById('d-cal').innerText = Math.round(p.currentCal);
-            document.getElementById('d-p').innerText = Math.round(p.currentP);
-            document.getElementById('d-g').innerText = Math.round(p.currentG);
-            document.getElementById('d-l').innerText = Math.round(p.currentL);
-            document.getElementById('d-water').innerText = p.currentWater.toFixed(2);
-            
-            // Update Micros display
-            MICROS_KEYS.forEach(k => {
-                const el = document.getElementById('d-' + k);
-                if(el) el.innerText = p[k].toFixed(1);
-            });
-        }
     </script>
 </head>
 <body class="pb-32 transition-all font-sans">
@@ -141,129 +127,53 @@
         <h2 class="text-3xl font-black mb-6">Nutrition Pro</h2>
         <input type="email" id="email" placeholder="Email" class="w-full p-4 mb-4 bg-slate-100 rounded-xl outline-none">
         <input type="password" id="password" placeholder="Mot de passe" class="w-full p-4 mb-6 bg-slate-100 rounded-xl outline-none">
-        <button onclick="login()" class="w-full p-4 bg-blue-600 text-white font-bold rounded-xl">CONNEXION</button>
+        <button onclick="window.login()" class="w-full p-4 bg-blue-600 text-white font-bold rounded-xl">CONNEXION</button>
     </div>
 
     <div id="main-app" class="hidden max-w-md mx-auto p-4">
         
         <div id="sec-tracker">
-            <div class="bg-white border p-6 rounded-[2.5rem] shadow-sm mb-4 text-center text-black">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Calories Restantes</p>
+            <div class="bg-white border p-6 rounded-3xl shadow-sm mb-4 text-center text-black">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Calories Restantes</p>
                 <div id="d-cal" class="text-6xl font-black italic">2000</div>
                 <div class="flex justify-around mt-6 border-t pt-4">
-                    <div><p class="text-[10px] text-orange-400 font-bold uppercase">Prot</p><div class="font-black text-lg"><span id="d-p">0</span>g</div></div>
-                    <div><p class="text-[10px] text-blue-400 font-bold uppercase">Gluc</p><div class="font-black text-lg"><span id="d-g">0</span>g</div></div>
-                    <div><p class="text-[10px] text-yellow-500 font-bold uppercase">Lipi</p><div class="font-black text-lg"><span id="d-l">0</span>g</div></div>
+                    <div><p class="text-[10px] text-orange-400 font-bold uppercase">Prot</p><div class="font-black text-lg text-black"><span id="d-p">0</span>g</div></div>
+                    <div><p class="text-[10px] text-blue-400 font-bold uppercase">Gluc</p><div class="font-black text-lg text-black"><span id="d-g">0</span>g</div></div>
+                    <div><p class="text-[10px] text-yellow-500 font-bold uppercase">Lipi</p><div class="font-black text-lg text-black"><span id="d-l">0</span>g</div></div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 mb-4">
-                <div class="bg-blue-500 p-4 rounded-3xl text-white flex justify-between items-center">
-                    <div><p class="text-[10px] font-bold uppercase">Eau (L)</p><div id="d-water" class="text-xl font-black">0.00</div></div>
-                    <button onclick="addWater()" class="bg-white/20 w-8 h-8 rounded-full font-bold">+</button>
-                </div>
-                <div class="bg-green-500 p-4 rounded-3xl text-white">
-                    <p class="text-[10px] font-bold uppercase">Fibres (g)</p>
-                    <div id="d-fiber" class="text-xl font-black">0</div>
-                </div>
+            <div class="bg-blue-50 border border-blue-100 p-4 rounded-3xl mb-4 flex justify-between items-center text-blue-900">
+                <div><p class="text-[10px] font-black uppercase tracking-widest">Hydratation (L)</p>
+                <div class="text-2xl font-black"><span id="d-water">0.00</span> / 2.50 L</div></div>
+                <button onclick="window.addWater()" class="bg-blue-500 text-white w-12 h-12 rounded-full font-black text-xl shadow-lg">+</button>
             </div>
 
-            <div class="flex gap-2 overflow-x-auto pb-4 mb-4 no-scrollbar">
-                <div class="min-w-[100px] bg-white border p-3 rounded-2xl text-center text-black">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase">Vit C</p>
-                    <div id="d-vitC" class="font-black">0</div>
+            <div id="micros-container" class="flex gap-3 overflow-x-auto pb-4 mb-4 snap-x no-scrollbar">
                 </div>
-                <div class="min-w-[100px] bg-white border p-3 rounded-2xl text-center text-black">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase">Fer</p>
-                    <div id="d-fe" class="font-black">0</div>
-                </div>
-                <div class="min-w-[100px] bg-white border p-3 rounded-2xl text-center text-black">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase">Magnés.</p>
-                    <div id="d-mg" class="font-black">0</div>
-                </div>
-                <div class="min-w-[100px] bg-white border p-3 rounded-2xl text-center text-black">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase">Zinc</p>
-                    <div id="d-zn" class="font-black">0</div>
-                </div>
-            </div>
 
-            <div class="bg-slate-900 p-6 rounded-[2.5rem] text-white shadow-2xl">
-                <h3 class="text-[10px] font-black uppercase text-slate-500 mb-4">Ajouter un repas</h3>
+            <div class="bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
                 <div class="grid grid-cols-3 gap-2 mb-4">
                     <input type="number" id="in-p" placeholder="Prot" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
                     <input type="number" id="in-g" placeholder="Gluc" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
                     <input type="number" id="in-l" placeholder="Lipi" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
                 </div>
-                
-                <div class="h-48 overflow-y-auto pr-2 space-y-4 mb-4 custom-scroll">
-                    <div>
-                        <p class="text-[9px] font-bold uppercase text-blue-400 mb-2">Vitamines & Fibres</p>
-                        <div class="grid grid-cols-3 gap-2">
-                            <input type="number" id="in-fiber" placeholder="Fibres" class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-omg3" placeholder="Omg3" class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-vitA" placeholder="Vit A" class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-vitC" placeholder="Vit C" class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-vitD" placeholder="Vit D" class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-b12" placeholder="B12" class="bg-slate-800 p-2 rounded-lg text-xs">
-                        </div>
+                <div id="micros-inputs" class="grid grid-cols-2 gap-2 mb-6">
                     </div>
-                    <div>
-                        <p class="text-[9px] font-bold uppercase text-orange-400 mb-2">Minéraux essentiels</p>
-                        <div class="grid grid-cols-3 gap-2">
-                            <input type="number" id="in-ca" placeholder="Calc." class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-mg" placeholder="Mag." class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-fe" placeholder="Fer" class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-zn" placeholder="Zinc" class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-k" placeholder="Potas." class="bg-slate-800 p-2 rounded-lg text-xs">
-                            <input type="number" id="in-na" placeholder="Sod." class="bg-slate-800 p-2 rounded-lg text-xs">
-                        </div>
-                    </div>
-                </div>
-                <button onclick="addFood()" class="w-full bg-white text-black p-4 rounded-2xl font-black text-xs uppercase active:scale-95 transition-all">Enregistrer le repas</button>
+                <button onclick="window.addFood()" class="w-full bg-white text-black p-4 rounded-xl font-black text-xs uppercase tracking-widest active:scale-95">Enregistrer le repas</button>
             </div>
         </div>
 
         <div id="sec-calc" class="hidden space-y-4">
-            <h2 class="text-2xl font-black italic">Paramètres</h2>
-            <div class="bg-white p-6 rounded-[2.5rem] border text-black space-y-3">
-                <div class="flex gap-2">
-                    <input type="number" id="c-w" placeholder="Poids (kg)" class="w-1/2 p-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold">
-                    <input type="number" id="c-h" placeholder="Taille (cm)" class="w-1/2 p-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold">
-                </div>
-                <input type="number" id="c-a" placeholder="Âge" class="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold">
-                
-                <p class="text-[10px] font-black uppercase text-slate-400 pt-2">Niveau de sport</p>
-                <select id="c-act" class="w-full p-4 rounded-2xl bg-slate-50 font-bold">
-                    <option value="1.2">Sédentaire</option>
-                    <option value="1.375">Léger (1-2x/sem)</option>
-                    <option value="1.55">Modéré (3-4x/sem)</option>
-                    <option value="1.725">Actif (5-6x/sem)</option>
-                    <option value="1.9">Élite (7x+/sem)</option>
-                </select>
-
-                <p class="text-[10px] font-black uppercase text-slate-400 pt-2">Objectif final</p>
-                <select id="c-goal" class="w-full p-4 rounded-2xl bg-blue-600 text-white font-bold shadow-lg">
-                    <option value="-400">Sèche / Perte de poids</option>
-                    <option value="0">Maintien / Santé</option>
-                    <option value="400">Prise de masse / Muscle</option>
-                </select>
-
-                <button onclick="runCalc()" class="w-full p-4 mt-4 bg-black text-white font-black rounded-2xl">RECALCULER MON PLAN</button>
-            </div>
-            <button onclick="logout()" class="w-full text-slate-400 font-bold text-[10px] uppercase pt-4">Déconnexion</button>
+            <h2 class="text-xl font-black mb-4">Paramètres</h2>
+            <button onclick="window.logout()" class="w-full bg-red-100 text-red-600 p-4 rounded-xl font-bold">Déconnexion</button>
         </div>
 
-        <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-56 bg-white/80 backdrop-blur-xl border shadow-2xl p-2 rounded-full flex justify-around items-center text-black">
-            <button onclick="nav('tracker')" class="p-3 text-xl">📊</button>
-            <button onclick="window.userProfile.darkMode = !window.userProfile.darkMode; applyUI(); saveData();" class="p-3 text-xl">🌓</button>
-            <button onclick="nav('calc')" class="p-3 text-xl">⚙️</button>
+        <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[220px] bg-white/90 backdrop-blur-md border shadow-2xl p-2 rounded-full flex justify-around items-center text-black">
+            <button onclick="window.nav('tracker')" class="p-3 text-xl">📊</button>
+            <button onclick="window.userProfile.darkMode = !window.userProfile.darkMode; window.applyUI(); window.saveData();" class="p-3 text-xl">🌓</button>
+            <button onclick="window.nav('calc')" class="p-3 text-xl">⚙️</button>
         </nav>
     </div>
-
-    <style>
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-    </style>
 </body>
 </html>
