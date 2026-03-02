@@ -10,6 +10,9 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // ==========================================
+        // 1. CONFIGURATION FIREBASE (METS TES CLÉS ICI)
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDd-9vJ_5q58hF6RIdM4Fsx6VIQcNe9zNc",
             authDomain: "test-bb0ab.firebaseapp.com",
@@ -24,119 +27,251 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // ==========================================
+        // 2. BASE DE DONNÉES COMPLÈTE (MACROS + MICROS)
+        // ==========================================
         window.userProfile = { 
-            darkMode: false, 
-            goalCal: 2000, goalP: 150, goalG: 200, goalL: 60, goalS: 50, goalSalt: 5, goalVit: 100,
-            currentCal: 2000, currentP: 150, currentG: 200, currentL: 60, currentS: 50, currentSalt: 5, currentVit: 100
+            darkMode: false, lastReset: new Date().toLocaleDateString(),
+            // Objectifs
+            goalCal: 2000, goalP: 150, goalG: 200, goalL: 60, 
+            goalWater: 2.5, goalFiber: 30, goalOmega: 2,
+            goalVitC: 110, goalVitD: 15, goalIron: 15, goalMag: 300, goalCalc: 1000, goalZinc: 11,
+            // Consommation Actuelle
+            currentCal: 2000, currentP: 150, currentG: 200, currentL: 60,
+            currentWater: 0, currentFiber: 0, currentOmega: 0,
+            currentVitC: 0, currentVitD: 0, currentIron: 0, currentMag: 0, currentCalc: 0, currentZinc: 0
         };
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                const docSnap = await getDoc(doc(db, "users", user.uid));
-                if (docSnap.exists()) window.userProfile = { ...window.userProfile, ...docSnap.data() };
-                applyUI();
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
+                try {
+                    const docSnap = await getDoc(doc(db, "users", user.uid));
+                    if (docSnap.exists()) {
+                        window.userProfile = { ...window.userProfile, ...docSnap.data() };
+                        checkDailyReset();
+                    }
+                    applyUI();
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('main-app').classList.remove('hidden');
+                } catch (e) { console.error("Erreur Firestore:", e); }
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('main-app').classList.add('hidden');
             }
         });
 
-        window.login = () => {
-            signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(err => alert(err.message));
+        function checkDailyReset() {
+            const today = new Date().toLocaleDateString();
+            if (window.userProfile.lastReset !== today) {
+                window.userProfile.currentCal = window.userProfile.goalCal;
+                window.userProfile.currentP = window.userProfile.goalP;
+                window.userProfile.currentG = window.userProfile.goalG;
+                window.userProfile.currentL = window.userProfile.goalL;
+                window.userProfile.currentWater = 0;
+                window.userProfile.currentFiber = 0; window.userProfile.currentOmega = 0;
+                window.userProfile.currentVitC = 0; window.userProfile.currentVitD = 0;
+                window.userProfile.currentIron = 0; window.userProfile.currentMag = 0; 
+                window.userProfile.currentCalc = 0; window.userProfile.currentZinc = 0;
+                window.userProfile.lastReset = today;
+                saveData();
+            }
+        }
+
+        window.saveData = async () => {
+            const user = auth.currentUser;
+            if (user) await setDoc(doc(db, "users", user.uid), window.userProfile);
         };
 
+        window.login = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Email ou mot de passe incorrect."));
+        window.logout = () => signOut(auth);
+        
         window.nav = (target) => {
             document.getElementById('sec-tracker').classList.toggle('hidden', target !== 'tracker');
             document.getElementById('sec-calc').classList.toggle('hidden', target !== 'calc');
         };
 
-        window.runCalc = async () => {
+        window.addWater = () => {
+            window.userProfile.currentWater += 0.25;
+            applyUI(); saveData();
+        };
+
+        window.addFood = () => {
+            const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
+            
+            const p = getVal('in-p'); const g = getVal('in-g'); const l = getVal('in-l');
+            window.userProfile.currentCal -= (p*4 + g*4 + l*9);
+            window.userProfile.currentP -= p; window.userProfile.currentG -= g; window.userProfile.currentL -= l;
+            
+            window.userProfile.currentFiber += getVal('in-fib');
+            window.userProfile.currentOmega += getVal('in-omg');
+            window.userProfile.currentVitC += getVal('in-vitc');
+            window.userProfile.currentVitD += getVal('in-vitd');
+            window.userProfile.currentIron += getVal('in-iron');
+            window.userProfile.currentMag += getVal('in-mag');
+            window.userProfile.currentCalc += getVal('in-calc');
+            window.userProfile.currentZinc += getVal('in-zinc');
+
+            applyUI(); saveData();
+            
+            ['in-p','in-g','in-l','in-fib','in-omg','in-vitc','in-vitd','in-iron','in-mag','in-calc','in-zinc'].forEach(id => document.getElementById(id).value = "");
+        };
+
+        window.runCalc = () => {
             const w = parseFloat(document.getElementById('c-w').value);
             const h = parseFloat(document.getElementById('c-h').value);
             const a = parseInt(document.getElementById('c-a').value);
             const act = parseFloat(document.getElementById('c-act').value);
-            if(!w || !h || !a) return alert("Remplis tout !");
+            const goalModifier = parseInt(document.getElementById('c-goal').value); // L'objectif (Prise de masse, etc.)
+            
+            if(!w || !h || !a) return;
 
-            const bmr = (10 * w) + (6.25 * h) - (5 * a) + 5;
-            const tdee = Math.round(bmr * act);
+            // 1. Calcul du métabolisme de base + activité
+            let tdee = Math.round(((10 * w) + (6.25 * h) - (5 * a) + 5) * act);
+            
+            // 2. Ajout/Retrait selon l'objectif (Perte = -400, Prise = +400)
+            tdee += goalModifier;
 
-            window.userProfile.goalCal = tdee;
+            window.userProfile.goalCal = tdee; 
             window.userProfile.currentCal = tdee;
-            window.userProfile.goalP = Math.round(w * 2);
-            window.userProfile.currentP = Math.round(w * 2);
-
-            applyUI();
-            const user = auth.currentUser;
-            if (user) await setDoc(doc(db, "users", user.uid), window.userProfile);
-            nav('tracker');
-        };
-
-        window.addFood = async () => {
-            const p = parseInt(document.getElementById('in-p').value) || 0;
-            const g = parseInt(document.getElementById('in-g').value) || 0;
-            const l = parseInt(document.getElementById('in-l').value) || 0;
-            window.userProfile.currentCal -= (p*4 + g*4 + l*9);
-            window.userProfile.currentP -= p;
-            applyUI();
-            if (auth.currentUser) await setDoc(doc(db, "users", auth.currentUser.uid), window.userProfile);
-            ['in-p','in-g','in-l'].forEach(id => document.getElementById(id).value = "");
+            
+            // 3. Ajustement des protéines (2.2g/kg en perte de poids pour protéger le muscle, sinon 2.0g)
+            const protRatio = goalModifier < 0 ? 2.2 : 2.0;
+            window.userProfile.goalP = Math.round(w * protRatio); 
+            window.userProfile.currentP = Math.round(w * protRatio);
+            
+            window.userProfile.goalL = Math.round(w * 0.9); 
+            window.userProfile.currentL = Math.round(w * 0.9);
+            
+            window.userProfile.goalG = Math.round((tdee - (window.userProfile.goalP*4 + window.userProfile.goalL*9))/4); 
+            window.userProfile.currentG = window.userProfile.goalG;
+            
+            applyUI(); saveData(); nav('tracker');
         };
 
         function applyUI() {
-            document.getElementById('display-cal').innerText = window.userProfile.currentCal;
-            document.getElementById('display-p').innerText = window.userProfile.currentP;
-            document.body.className = window.userProfile.darkMode ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-900";
+            const p = window.userProfile;
+            document.body.className = p.darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900";
+            
+            document.getElementById('d-cal').innerText = Math.round(p.currentCal);
+            document.getElementById('d-p').innerText = Math.round(p.currentP);
+            document.getElementById('d-g').innerText = Math.round(p.currentG);
+            document.getElementById('d-l').innerText = Math.round(p.currentL);
+            document.getElementById('d-water').innerText = p.currentWater.toFixed(2);
+            
+            document.getElementById('d-fib').innerText = `${p.currentFiber} / ${p.goalFiber}g`;
+            document.getElementById('d-omg').innerText = `${p.currentOmega} / ${p.goalOmega}g`;
+            document.getElementById('d-iron').innerText = `${p.currentIron} / ${p.goalIron}mg`;
+            document.getElementById('d-mag').innerText = `${p.currentMag} / ${p.goalMag}mg`;
         }
     </script>
 </head>
-<body class="pb-32 transition-all">
+<body class="pb-32 transition-all font-sans">
 
-    <div id="login-screen" class="p-8 mt-20 max-w-sm mx-auto bg-white rounded-3xl shadow-xl text-black">
-        <h2 class="text-2xl font-black mb-6">Connexion</h2>
-        <input type="email" id="email" placeholder="Email" class="w-full p-4 mb-4 bg-slate-100 rounded-xl">
-        <input type="password" id="password" placeholder="Pass" class="w-full p-4 mb-6 bg-slate-100 rounded-xl">
-        <button onclick="login()" class="w-full p-4 bg-black text-white font-bold rounded-xl">ENTRER</button>
+    <div id="login-screen" class="max-w-sm mx-auto mt-20 p-8 bg-white rounded-3xl shadow-xl text-black border">
+        <h2 class="text-3xl font-black mb-6">Nutrition Pro</h2>
+        <input type="email" id="email" placeholder="Email" class="w-full p-4 mb-4 bg-slate-100 rounded-xl outline-none">
+        <input type="password" id="password" placeholder="Mot de passe" class="w-full p-4 mb-6 bg-slate-100 rounded-xl outline-none">
+        <button onclick="login()" class="w-full p-4 bg-blue-600 text-white font-bold rounded-xl">CONNEXION</button>
     </div>
 
     <div id="main-app" class="hidden max-w-md mx-auto p-4">
         
         <div id="sec-tracker">
-            <div class="p-8 rounded-[2.5rem] shadow-sm mb-6 bg-white text-center text-black border">
-                <p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Calories Restantes</p>
-                <div id="display-cal" class="text-6xl font-black italic">2000</div>
-            </div>
-            <div class="bg-white p-4 rounded-2xl mb-6 text-black border">
-                <p class="text-[10px] font-bold text-orange-400 uppercase">Protéines</p>
-                <div class="text-2xl font-black"><span id="display-p">150</span>g</div>
-            </div>
-            <div class="bg-slate-900 p-6 rounded-3xl text-white space-y-3">
-                <div class="grid grid-cols-3 gap-2">
-                    <input type="number" id="in-p" placeholder="P" class="bg-slate-800 p-2 rounded-lg text-sm">
-                    <input type="number" id="in-g" placeholder="G" class="bg-slate-800 p-2 rounded-lg text-sm">
-                    <input type="number" id="in-l" placeholder="L" class="bg-slate-800 p-2 rounded-lg text-sm">
+            <div class="bg-white border p-6 rounded-3xl shadow-sm mb-4 text-center text-black">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Calories Restantes</p>
+                <div id="d-cal" class="text-6xl font-black italic">2000</div>
+                <div class="flex justify-around mt-6 border-t pt-4">
+                    <div><p class="text-[10px] text-orange-400 font-bold uppercase">Prot</p><div class="font-black text-lg"><span id="d-p">150</span>g</div></div>
+                    <div><p class="text-[10px] text-blue-400 font-bold uppercase">Gluc</p><div class="font-black text-lg"><span id="d-g">200</span>g</div></div>
+                    <div><p class="text-[10px] text-yellow-500 font-bold uppercase">Lipi</p><div class="font-black text-lg"><span id="d-l">60</span>g</div></div>
                 </div>
-                <button onclick="addFood()" class="w-full p-4 bg-white text-black font-black rounded-xl">ENREGISTRER</button>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-100 p-4 rounded-3xl mb-4 flex justify-between items-center text-blue-900">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-widest">Hydratation (L)</p>
+                    <div class="text-2xl font-black"><span id="d-water">0.00</span> / 2.50 L</div>
+                </div>
+                <button onclick="addWater()" class="bg-blue-500 text-white w-12 h-12 rounded-full font-black text-xl shadow-lg active:scale-90 transition-all">+</button>
+            </div>
+
+            <div class="flex gap-3 overflow-x-auto pb-4 mb-4 snap-x">
+                <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center">
+                    <p class="text-[10px] font-bold text-green-600 uppercase">Fibres</p>
+                    <div id="d-fib" class="font-black">0 / 30g</div>
+                </div>
+                <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center">
+                    <p class="text-[10px] font-bold text-teal-600 uppercase">Oméga-3/6</p>
+                    <div id="d-omg" class="font-black">0 / 2g</div>
+                </div>
+                <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center">
+                    <p class="text-[10px] font-bold text-red-500 uppercase">Fer</p>
+                    <div id="d-iron" class="font-black">0 / 15mg</div>
+                </div>
+                <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center">
+                    <p class="text-[10px] font-bold text-purple-500 uppercase">Magnésium</p>
+                    <div id="d-mag" class="font-black">0 / 300mg</div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
+                <h3 class="text-xs font-black uppercase tracking-widest mb-4 text-slate-400">1. Macros (g)</h3>
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <input type="number" id="in-p" placeholder="Prot" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                    <input type="number" id="in-g" placeholder="Gluc" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                    <input type="number" id="in-l" placeholder="Lipi" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                </div>
+                
+                <h3 class="text-xs font-black uppercase tracking-widest mb-4 text-slate-400">2. Santé & Micros</h3>
+                <div class="grid grid-cols-2 gap-2 mb-6 h-32 overflow-y-auto pr-2">
+                    <input type="number" id="in-fib" placeholder="Fibres (g)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                    <input type="number" id="in-omg" placeholder="Oméga (g)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                    <input type="number" id="in-vitc" placeholder="Vit C (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                    <input type="number" id="in-vitd" placeholder="Vit D (µg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                    <input type="number" id="in-iron" placeholder="Fer (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                    <input type="number" id="in-mag" placeholder="Magnésium (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                    <input type="number" id="in-calc" placeholder="Calcium (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                    <input type="number" id="in-zinc" placeholder="Zinc (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                </div>
+
+                <button onclick="addFood()" class="w-full bg-white text-black p-4 rounded-xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">Enregistrer le repas</button>
             </div>
         </div>
 
         <div id="sec-calc" class="hidden space-y-4">
-            <h2 class="text-xl font-black mb-4">Calculateur de besoins</h2>
-            <input type="number" id="c-w" placeholder="Poids (kg)" class="w-full p-4 rounded-xl bg-white border text-black">
-            <input type="number" id="c-h" placeholder="Taille (cm)" class="w-full p-4 rounded-xl bg-white border text-black">
-            <input type="number" id="c-a" placeholder="Âge" class="w-full p-4 rounded-xl bg-white border text-black">
-            <select id="c-act" class="w-full p-4 rounded-xl bg-white border text-black">
-                <option value="1.2">Sédentaire</option>
-                <option value="1.55">Sportif (3-5x/sem)</option>
-                <option value="1.9">Extrême (Pro)</option>
-            </select>
-            <button onclick="runCalc()" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl">CALCULER MON OBJECTIF</button>
+            <h2 class="text-xl font-black mb-4">Calculateur & Objectifs</h2>
+            <div class="bg-white p-6 rounded-3xl border text-black space-y-3">
+                <div class="flex gap-2">
+                    <input type="number" id="c-w" placeholder="Poids (kg)" class="w-1/2 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    <input type="number" id="c-h" placeholder="Taille (cm)" class="w-1/2 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                </div>
+                <input type="number" id="c-a" placeholder="Âge" class="w-full p-4 rounded-xl bg-slate-50 border border-slate-100">
+                
+                <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-4 mb-1">Activité</h3>
+                <select id="c-act" class="w-full p-4 rounded-xl bg-slate-50 border border-slate-100 font-bold">
+                    <option value="1.2">Sédentaire (Bureau, pas de sport)</option>
+                    <option value="1.375">Léger (Sport 1-2x/semaine)</option>
+                    <option value="1.55">Modéré (Sport 3-5x/semaine)</option>
+                    <option value="1.725">Actif (Sport 6-7x/semaine)</option>
+                    <option value="1.9">Extrême (Travail physique + Sport)</option>
+                </select>
+
+                <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-4 mb-1">Objectif</h3>
+                <select id="c-goal" class="w-full p-4 rounded-xl bg-slate-50 border border-slate-100 font-bold text-blue-600">
+                    <option value="-400">Perte de poids (-400 kcal / Sèche)</option>
+                    <option value="0">Maintien (Santé / Recomposition)</option>
+                    <option value="400">Prise de masse (+400 kcal / Volume)</option>
+                </select>
+
+                <button onclick="runCalc()" class="w-full p-4 mt-4 bg-blue-600 text-white font-black rounded-xl active:scale-95 transition-all">GÉNÉRER MON PLAN</button>
+            </div>
+            <button onclick="logout()" class="w-full text-slate-400 font-bold text-xs uppercase pt-4">Déconnexion</button>
         </div>
 
-        <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[200px] bg-white border shadow-2xl p-2 rounded-full flex justify-around items-center">
-            <button onclick="nav('tracker')" class="p-2 text-xl">📊</button>
-            <button onclick="nav('calc')" class="p-2 text-xl text-blue-500">🧬</button>
+        <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[220px] bg-white/90 backdrop-blur-md border shadow-2xl p-2 rounded-full flex justify-around items-center text-black">
+            <button onclick="nav('tracker')" class="p-3 text-xl hover:bg-slate-100 rounded-full transition">📊</button>
+            <button onclick="window.userProfile.darkMode = !window.userProfile.darkMode; applyUI(); saveData();" class="p-3 text-xl hover:bg-slate-100 rounded-full transition">🌓</button>
+            <button onclick="nav('calc')" class="p-3 text-xl hover:bg-slate-100 rounded-full transition">⚙️</button>
         </nav>
     </div>
 </body>
