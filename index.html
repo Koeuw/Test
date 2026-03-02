@@ -9,7 +9,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // --- COLLE TES CLÉS ICI ---
         const firebaseConfig = {
             apiKey: "AIzaSyDd-9vJ_5q58hF6RIdM4Fsx6VIQcNe9zNc",
             authDomain: "test-bb0ab.firebaseapp.com",
@@ -19,12 +18,10 @@
             appId: "1:845349088536:web:9dea68916cfdc465b2826d",
             measurementId: "G-SVHDEZ1HX8"
         };
-        // --------------------------
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        // Fonctions Globales
         window.login = () => {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
@@ -34,68 +31,138 @@
 
         onAuthStateChanged(auth, (user) => {
             document.getElementById('login-screen').classList.toggle('hidden', !!user);
-            document.getElementById('main-app').classList.toggle('hidden', !user);
+            document.getElementById('main-container').classList.toggle('hidden', !user);
         });
     </script>
 </head>
-<body class="bg-gray-50 font-sans">
+<body class="bg-slate-50 font-sans pb-24">
 
     <div id="login-screen" class="p-8 mt-20 max-w-sm mx-auto bg-white rounded-3xl shadow-xl">
-        <h2 class="text-2xl font-black mb-6 text-gray-800">Connexion</h2>
-        <input type="email" id="email" placeholder="Email" class="w-full border p-4 rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-500">
-        <input type="password" id="password" placeholder="Mot de passe" class="w-full border p-4 rounded-xl mb-6 outline-none focus:ring-2 focus:ring-blue-500">
-        <button onclick="login()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold uppercase tracking-wide">Entrer</button>
+        <h2 class="text-2xl font-black mb-6">Connexion</h2>
+        <input type="email" id="email" placeholder="Email" class="w-full border p-4 rounded-xl mb-4 outline-none">
+        <input type="password" id="password" placeholder="Mot de passe" class="w-full border p-4 rounded-xl mb-6 outline-none">
+        <button onclick="login()" class="w-full bg-black text-white p-4 rounded-xl font-bold">ENTRER</button>
     </div>
 
-    <div id="main-app" class="hidden p-4 max-w-md mx-auto">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-xl font-black text-gray-800 tracking-tight">MA NUTRITION</h1>
-            <button onclick="logout()" class="text-xs font-bold text-gray-400 uppercase">Quitter</button>
+    <div id="main-container" class="hidden max-w-md mx-auto p-4">
+        
+        <div id="tab-tracker">
+            <h1 class="text-2xl font-black mb-6">Tracker</h1>
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm mb-6 border border-slate-100 text-center">
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Calories Restantes</p>
+                <div id="cal-rem" class="text-5xl font-black text-slate-900 my-2">2000</div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="bg-white p-3 rounded-2xl border border-slate-100 text-center">
+                    <p class="text-[10px] font-bold text-orange-400 uppercase">Prot</p>
+                    <div class="font-black text-slate-700"><span id="p-rem">150</span>g</div>
+                </div>
+                <div class="bg-white p-3 rounded-2xl border border-slate-100 text-center">
+                    <p class="text-[10px] font-bold text-blue-400 uppercase">Glu</p>
+                    <div class="font-black text-slate-700"><span id="g-rem">200</span>g</div>
+                </div>
+                <div class="bg-white p-3 rounded-2xl border border-slate-100 text-center">
+                    <p class="text-[10px] font-bold text-yellow-500 uppercase">Lip</p>
+                    <div class="font-black text-slate-700"><span id="l-rem">60</span>g</div>
+                </div>
+            </div>
+            
+            <button onclick="addFood(150, 25, 5, 2)" class="w-full bg-white p-5 rounded-2xl border border-slate-200 mb-3 flex justify-between items-center active:scale-95 transition-all">
+                <span class="font-bold uppercase text-sm tracking-tight">🍗 Protéines Légères</span>
+                <span class="text-xs text-slate-400">25g P</span>
+            </button>
         </div>
 
-        <div class="bg-white p-6 rounded-[2rem] shadow-sm mb-6 border border-gray-100 text-center">
-            <p class="text-gray-400 text-sm font-bold uppercase tracking-widest">Calories restantes</p>
-            <div id="cal-rem" class="text-6xl font-black text-gray-900 my-2">2200</div>
-        </div>
+        <div id="tab-settings" class="hidden">
+            <h1 class="text-2xl font-black mb-6">Réglages</h1>
+            
+            <div class="bg-blue-600 p-6 rounded-3xl text-white mb-6">
+                <h3 class="font-bold mb-4 italic">Calculateur de besoins</h3>
+                <div class="space-y-3">
+                    <input type="number" id="weight" placeholder="Poids (kg)" class="w-full p-3 rounded-xl text-black text-sm">
+                    <input type="number" id="height" placeholder="Taille (cm)" class="w-full p-3 rounded-xl text-black text-sm">
+                    <input type="number" id="age" placeholder="Âge" class="w-full p-3 rounded-xl text-black text-sm">
+                    <button onclick="calculateBMR()" class="w-full bg-black p-3 rounded-xl font-bold text-sm">CALCULER</button>
+                </div>
+            </div>
 
-        <div class="grid grid-cols-3 gap-3 mb-8">
-            <div class="bg-orange-50 p-4 rounded-2xl text-center border border-orange-100">
-                <p class="text-[10px] font-bold text-orange-400 uppercase">Protéines</p>
-                <div class="text-lg font-black text-orange-700"><span id="p-rem">150</span>g</div>
+            <div class="bg-white p-6 rounded-3xl border border-slate-100 space-y-4">
+                <h3 class="font-bold text-slate-800 uppercase text-xs tracking-widest">Objectifs Manuels</h3>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Calories</label>
+                    <input type="number" id="set-cal" class="w-full border-b py-2 font-bold outline-none" value="2000">
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400">PROT (g)</label>
+                        <input type="number" id="set-p" class="w-full border-b py-2 font-bold outline-none text-orange-500" value="150">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400">GLU (g)</label>
+                        <input type="number" id="set-g" class="w-full border-b py-2 font-bold outline-none text-blue-500" value="200">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400">LIP (g)</label>
+                        <input type="number" id="set-l" class="w-full border-b py-2 font-bold outline-none text-yellow-600" value="60">
+                    </div>
+                </div>
+                <button onclick="applySettings()" class="w-full bg-slate-100 p-4 rounded-xl font-bold text-slate-700 text-sm">APPLIQUER</button>
             </div>
-            <div class="bg-blue-50 p-4 rounded-2xl text-center border border-blue-100">
-                <p class="text-[10px] font-bold text-blue-400 uppercase">Glucides</p>
-                <div class="text-lg font-black text-blue-700"><span id="g-rem">250</span>g</div>
-            </div>
-            <div class="bg-yellow-50 p-4 rounded-2xl text-center border border-yellow-100">
-                <p class="text-[10px] font-bold text-yellow-500 uppercase">Lipides</p>
-                <div class="text-lg font-black text-yellow-700"><span id="l-rem">70</span>g</div>
-            </div>
-        </div>
-
-        <div class="space-y-3">
-            <p class="text-xs font-bold text-gray-400 uppercase ml-2">Ajout rapide</p>
-            <button onclick="addFood(150, 25, 5, 2)" class="w-full bg-white p-4 rounded-2xl border border-gray-200 flex justify-between items-center active:scale-95 transition-transform">
-                <span class="font-bold text-gray-700">🍗 Poulet (150g)</span>
-                <span class="text-xs text-gray-400">25g P • 2g L</span>
-            </button>
-            <button onclick="addFood(200, 4, 45, 1)" class="w-full bg-white p-4 rounded-2xl border border-gray-200 flex justify-between items-center active:scale-95 transition-transform">
-                <span class="font-bold text-gray-700">🍚 Riz (200g)</span>
-                <span class="text-xs text-gray-400">45g G • 4g P</span>
-            </button>
-            <button onclick="addFood(500, 20, 60, 20)" class="w-full bg-white p-4 rounded-2xl border border-gray-200 flex justify-between items-center active:scale-95 transition-transform">
-                <span class="font-bold text-gray-700">🍔 Repas complet</span>
-                <span class="text-xs text-gray-400">500 kcal</span>
-            </button>
+            
+            <button onclick="logout()" class="w-full mt-8 text-red-400 font-bold text-xs uppercase tracking-widest">Déconnexion</button>
         </div>
     </div>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 flex justify-around items-center max-w-md mx-auto">
+        <button onclick="showTab('tracker')" class="flex flex-col items-center gap-1">
+            <span class="text-xl">📊</span>
+            <span class="text-[10px] font-bold uppercase">Suivi</span>
+        </button>
+        <button onclick="showTab('settings')" class="flex flex-col items-center gap-1">
+            <span class="text-xl">⚙️</span>
+            <span class="text-[10px] font-bold uppercase">Réglages</span>
+        </button>
+    </nav>
 
     <script>
+        function showTab(tab) {
+            document.getElementById('tab-tracker').classList.toggle('hidden', tab !== 'tracker');
+            document.getElementById('tab-settings').classList.toggle('hidden', tab !== 'settings');
+        }
+
         function addFood(cal, p, g, l) {
             document.getElementById('cal-rem').innerText -= cal;
             document.getElementById('p-rem').innerText -= p;
             document.getElementById('g-rem').innerText -= g;
             document.getElementById('l-rem').innerText -= l;
+        }
+
+        function applySettings() {
+            document.getElementById('cal-rem').innerText = document.getElementById('set-cal').value;
+            document.getElementById('p-rem').innerText = document.getElementById('set-p').value;
+            document.getElementById('g-rem').innerText = document.getElementById('set-g').value;
+            document.getElementById('l-rem').innerText = document.getElementById('set-l').value;
+            showTab('tracker');
+        }
+
+        function calculateBMR() {
+            const w = document.getElementById('weight').value;
+            const h = document.getElementById('height').value;
+            const a = document.getElementById('age').value;
+            
+            if(!w || !h || !a) return alert("Remplis tout !");
+            
+            // Formule simplifiée (Mifflin-St Jeor pour homme)
+            const bmr = Math.round((10 * w) + (6.25 * h) - (5 * a) + 5);
+            const maintenance = Math.round(bmr * 1.4); // Activité modérée
+            
+            document.getElementById('set-cal').value = maintenance;
+            document.getElementById('set-p').value = Math.round(w * 1.8);
+            document.getElementById('set-l').value = Math.round(w * 0.8);
+            document.getElementById('set-g').value = Math.round((maintenance - (w*1.8*4 + w*0.8*9)) / 4);
+            
+            alert("Calcul terminé ! Appuie sur APPLIQUER.");
         }
     </script>
 </body>
