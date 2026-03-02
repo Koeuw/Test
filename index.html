@@ -3,253 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Nutrition Ultra Pro + Historique</title>
-    
+    <title>Nutrition Ultra Pro Intégral</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, limit, getDocs, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 1. CONFIGURATION FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyDd-9vJ_5q58hF6RIdM4Fsx6VIQcNe9zNc",
             authDomain: "test-bb0ab.firebaseapp.com",
             projectId: "test-bb0ab",
             storageBucket: "test-bb0ab.firebasestorage.app",
             messagingSenderId: "845349088536",
-            appId: "1:845349088536:web:9dea68916cfdc465b2826d",
-            measurementId: "G-SVHDEZ1HX8"
+            appId: "1:845349088536:web:9dea68916cfdc465b2826d"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // 2. LISTE DES NUTRIMENTS (Ajoute tes 28 ici)
         const microsList = [
             { id: 'Fiber', name: 'Fibres', unit: 'g', color: 'text-green-600' },
             { id: 'Omega', name: 'Oméga', unit: 'g', color: 'text-teal-600' },
             { id: 'Iron', name: 'Fer', unit: 'mg', color: 'text-red-500' },
             { id: 'Mag', name: 'Mag.', unit: 'mg', color: 'text-purple-500' },
-            { id: 'VitC', name: 'Vit. C', unit: 'mg', color: 'text-orange-500' },
-            { id: 'VitD', name: 'Vit. D', unit: 'µg', color: 'text-yellow-600' },
-            { id: 'Zinc', name: 'Zinc', unit: 'mg', color: 'text-blue-400' }
-            // Ajoute les autres suivant le même modèle...
+            { id: 'VitC', name: 'Vit. C', unit: 'mg', color: 'text-orange-500' }
         ];
 
         window.userProfile = { 
-            darkMode: false, 
-            goalCal: 2000, goalP: 150, goalG: 200, goalL: 60, goalWater: 2.5,
+            darkMode: false, goalCal: 2000, goalP: 150, goalG: 200, goalL: 60, goalWater: 2.5,
             currentCal: 2000, currentP: 150, currentG: 200, currentL: 60, currentWater: 0
         };
-        microsList.forEach(m => { 
-            window.userProfile[`goal${m.id}`] = 100; 
-            window.userProfile[`current${m.id}`] = 0; 
-        });
+        microsList.forEach(m => { window.userProfile[`goal${m.id}`] = 100; window.userProfile[`current${m.id}`] = 0; });
 
-        // 3. FONCTIONS UI & NAVIGATION
         window.applyUI = () => {
             const p = window.userProfile;
             document.body.className = p.darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900";
-            
             document.getElementById('d-cal').innerText = Math.round(p.currentCal);
             document.getElementById('d-p').innerText = Math.round(p.currentP);
             document.getElementById('d-g').innerText = Math.round(p.currentG);
             document.getElementById('d-l').innerText = Math.round(p.currentL);
             document.getElementById('d-water').innerText = p.currentWater.toFixed(2);
             
-            // Carrousel Micros
-            const container = document.getElementById('micros-container');
-            container.innerHTML = microsList.map(m => `
+            document.getElementById('micros-container').innerHTML = microsList.map(m => `
                 <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center shadow-sm">
                     <p class="text-[10px] font-bold ${m.color} uppercase">${m.name}</p>
                     <div class="font-black italic">${(p[`current${m.id}`] || 0).toFixed(1)} / ${p[`goal${m.id}`]}${m.unit}</div>
                 </div>
             `).join('');
 
-            // Inputs Micros
-            const inputContainer = document.getElementById('micros-inputs');
-            inputContainer.innerHTML = microsList.map(m => `
+            document.getElementById('micros-inputs').innerHTML = microsList.map(m => `
                 <input type="number" id="in-${m.id}" placeholder="${m.name}" class="bg-slate-800 p-3 rounded-xl text-xs outline-none text-white">
             `).join('');
         };
 
-        window.nav = (target) => {
-            ['sec-tracker', 'sec-history', 'sec-calc'].forEach(s => document.getElementById(s).classList.add('hidden'));
-            document.getElementById(`sec-${target}`).classList.remove('hidden');
-            if(target === 'history') window.loadHistory();
-        };
-
-        // 4. LOGIQUE DONNÉES (Save & History)
         window.saveData = async (mealLog = null) => {
             const user = auth.currentUser;
             if (!user) return;
             await setDoc(doc(db, "users", user.uid), window.userProfile);
-            if (mealLog) {
-                await addDoc(collection(db, "users", user.uid, "history"), {
-                    ...mealLog,
-                    timestamp: new Date().toISOString()
-                });
-            }
+            if (mealLog) await addDoc(collection(db, "users", user.uid, "history"), { ...mealLog, timestamp: new Date().toISOString() });
+        };
+
+        window.runCalc = () => {
+            const w = parseFloat(document.getElementById('c-w').value), h = parseFloat(document.getElementById('c-h').value), a = parseInt(document.getElementById('c-a').value);
+            const act = parseFloat(document.getElementById('c-act').value), goalMod = parseInt(document.getElementById('c-goal').value);
+            if(!w || !h || !a) return alert("Remplis tout !");
+
+            let tdee = Math.round(((10 * w) + (6.25 * h) - (5 * a) + 5) * act) + goalMod;
+            window.userProfile.goalCal = tdee; window.userProfile.currentCal = tdee;
+            window.userProfile.goalP = Math.round(w * (goalMod < 0 ? 2.2 : 2.0));
+            window.userProfile.goalL = Math.round(w * 0.9);
+            window.userProfile.goalG = Math.round((tdee - (window.userProfile.goalP*4 + window.userProfile.goalL*9))/4);
+            
+            // Reset journalier
+            window.userProfile.currentP = window.userProfile.goalP;
+            window.userProfile.currentG = window.userProfile.goalG;
+            window.userProfile.currentL = window.userProfile.goalL;
+
+            window.applyUI(); window.saveData(); window.nav('tracker');
         };
 
         window.addFood = () => {
             const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
-            const p = getVal('in-p'), g = getVal('in-g'), l = getVal('in-l');
-            const cal = Math.round(p*4 + g*4 + l*9);
-
-            window.userProfile.currentCal -= cal;
-            window.userProfile.currentP -= p; 
-            window.userProfile.currentG -= g; 
-            window.userProfile.currentL -= l;
-
-            let microsAdded = {};
-            microsList.forEach(m => {
-                const val = getVal(`in-${m.id}`);
-                window.userProfile[`current${m.id}`] += val;
-                microsAdded[m.id] = val;
-            });
-
-            window.applyUI();
-            window.saveData({ p, g, l, cal, ...microsAdded });
+            const p = getVal('in-p'), g = getVal('in-g'), l = getVal('in-l'), cal = Math.round(p*4 + g*4 + l*9);
+            window.userProfile.currentCal -= cal; window.userProfile.currentP -= p; window.userProfile.currentG -= g; window.userProfile.currentL -= l;
+            let log = { p, g, l, cal };
+            microsList.forEach(m => { const v = getVal(`in-${m.id}`); window.userProfile[`current${m.id}`] += v; log[m.id] = v; });
+            window.applyUI(); window.saveData(log);
             ['in-p','in-g','in-l'].forEach(id => document.getElementById(id).value = "");
         };
 
         window.addWater = () => { window.userProfile.currentWater += 0.25; window.applyUI(); window.saveData(); };
-
-        // 5. GRAPHIQUE & HISTORIQUE VISUEL
-        let myChart = null;
-        window.loadHistory = async () => {
-            const user = auth.currentUser;
-            if (!user) return;
-            
-            const q = query(collection(db, "users", user.uid, "history"), orderBy("timestamp", "desc"), limit(20));
-            const snap = await getDocs(q);
-            
-            // Liste textuelle
-            const histList = document.getElementById('history-list');
-            histList.innerHTML = "";
-            let dailyData = {};
-
-            snap.forEach(doc => {
-                const d = doc.data();
-                const dateObj = new Date(d.timestamp);
-                const dayKey = dateObj.toLocaleDateString();
-                const time = dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                
-                // Aggrégation pour le graphique
-                dailyData[dayKey] = (dailyData[dayKey] || 0) + d.cal;
-
-                histList.innerHTML += `
-                    <div class="bg-white p-3 rounded-2xl border mb-2 flex justify-between items-center text-black shadow-sm">
-                        <div class="text-xs font-black">${time} <span class="text-slate-400 font-normal ml-2">${d.cal} kcal</span></div>
-                        <div class="text-[9px] font-bold uppercase text-blue-500">P:${d.p} G:${d.g} L:${d.l}</div>
-                    </div>`;
-            });
-
-            // Rendu du Graphique (7 derniers jours)
-            const ctx = document.getElementById('calorieChart').getContext('2d');
-            if (myChart) myChart.destroy();
-            const labels = Object.keys(dailyData).reverse().slice(-7);
-            const values = labels.map(l => dailyData[l]);
-
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Calories consommées',
-                        data: values,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        fill: true, tension: 0.4, borderWidth: 3, pointRadius: 5
-                    }]
-                },
-                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-            });
-        };
-
-        // 6. AUTH & CALCULATEUR
+        window.nav = (t) => { ['tracker','history','calc'].forEach(s => document.getElementById(`sec-${s}`).classList.toggle('hidden', s !== t)); if(t==='history') window.loadHistory(); };
         window.login = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Erreur"));
         window.logout = () => signOut(auth);
-        
+
+        let myChart = null;
+        window.loadHistory = async () => {
+            const user = auth.currentUser; if (!user) return;
+            const q = query(collection(db, "users", user.uid, "history"), orderBy("timestamp", "desc"), limit(20));
+            const snap = await getDocs(q);
+            const histList = document.getElementById('history-list'); histList.innerHTML = "";
+            let daily = {};
+            snap.forEach(doc => {
+                const d = doc.data(), date = new Date(d.timestamp), day = date.toLocaleDateString(), time = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                daily[day] = (daily[day] || 0) + d.cal;
+                histList.innerHTML += `<div class="bg-white p-3 rounded-2xl border mb-2 flex justify-between items-center text-black shadow-sm"><div class="text-xs font-black">${time} <span class="text-slate-400 font-normal ml-2">${d.cal} kcal</span></div><div class="text-[9px] font-bold text-blue-500">P:${d.p} G:${d.g} L:${d.l}</div></div>`;
+            });
+            const ctx = document.getElementById('calorieChart').getContext('2d');
+            if(myChart) myChart.destroy();
+            const labels = Object.keys(daily).reverse();
+            myChart = new Chart(ctx, { type:'line', data:{ labels, datasets:[{ label:'kcal', data:labels.map(l=>daily[l]), borderColor:'#3b82f6', fill:true, tension:0.4 }] }, options:{ plugins:{legend:{display:false}} }});
+        };
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const docSnap = await getDoc(doc(db, "users", user.uid));
                 if (docSnap.exists()) window.userProfile = { ...window.userProfile, ...docSnap.data() };
-                window.applyUI();
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
-            } else {
-                document.getElementById('login-screen').classList.remove('hidden');
-                document.getElementById('main-app').classList.add('hidden');
-            }
+                window.applyUI(); document.getElementById('login-screen').classList.add('hidden'); document.getElementById('main-app').classList.remove('hidden');
+            } else { document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('main-app').classList.add('hidden'); }
         });
     </script>
-    <style>.no-scrollbar::-webkit-scrollbar { display: none; }</style>
 </head>
-<body class="pb-32 transition-all font-sans overflow-x-hidden">
-
-    <div id="login-screen" class="max-w-sm mx-auto mt-20 p-8 bg-white rounded-3xl shadow-xl text-black border">
-        <h2 class="text-3xl font-black mb-6 italic text-blue-600 underline">PRO NUTRITION</h2>
+<body class="pb-32 font-sans transition-all">
+    <div id="login-screen" class="max-w-sm mx-auto mt-20 p-8 bg-white rounded-3xl border shadow-xl text-black">
+        <h2 class="text-3xl font-black mb-6 italic text-blue-600">NUTRITION PRO</h2>
         <input type="email" id="email" placeholder="Email" class="w-full p-4 mb-4 bg-slate-100 rounded-xl outline-none">
         <input type="password" id="password" placeholder="Mot de passe" class="w-full p-4 mb-6 bg-slate-100 rounded-xl outline-none">
-        <button onclick="window.login()" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl shadow-lg">ACCÉDER AU TRACKER</button>
+        <button onclick="window.login()" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl">CONNEXION</button>
     </div>
 
     <div id="main-app" class="hidden max-w-md mx-auto p-4">
-        
         <div id="sec-tracker">
             <div class="bg-white border p-6 rounded-3xl shadow-sm mb-4 text-center text-black">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Calories Restantes</p>
-                <div id="d-cal" class="text-6xl font-black italic tracking-tighter">2000</div>
+                <p class="text-[10px] font-black text-slate-400 uppercase">Calories Restantes</p>
+                <div id="d-cal" class="text-6xl font-black italic">2000</div>
                 <div class="flex justify-around mt-6 border-t pt-4">
-                    <div><p class="text-[10px] text-orange-400 font-bold uppercase">Prot</p><div class="font-black text-lg"><span id="d-p">0</span>g</div></div>
-                    <div><p class="text-[10px] text-blue-400 font-bold uppercase">Gluc</p><div class="font-black text-lg"><span id="d-g">0</span>g</div></div>
-                    <div><p class="text-[10px] text-yellow-500 font-bold uppercase">Lipi</p><div class="font-black text-lg"><span id="d-l">0</span>g</div></div>
+                    <div><p class="text-[10px] text-orange-400 font-bold uppercase">P</p><div class="font-black text-lg"><span id="d-p">0</span>g</div></div>
+                    <div><p class="text-[10px] text-blue-400 font-bold uppercase">G</p><div class="font-black text-lg"><span id="d-g">0</span>g</div></div>
+                    <div><p class="text-[10px] text-yellow-500 font-bold uppercase">L</p><div class="font-black text-lg"><span id="d-l">0</span>g</div></div>
                 </div>
             </div>
-
-            <div class="bg-blue-50 border border-blue-100 p-4 rounded-3xl mb-4 flex justify-between items-center text-blue-900 shadow-inner">
-                <div><p class="text-[10px] font-black uppercase">Hydratation (L)</p>
-                <div class="text-2xl font-black"><span id="d-water">0.00</span> / 2.50 L</div></div>
+            <div class="bg-blue-50 border p-4 rounded-3xl mb-4 flex justify-between items-center text-blue-900 shadow-inner">
+                <div><p class="text-[10px] font-black uppercase">Eau (L)</p><div class="text-2xl font-black"><span id="d-water">0.00</span> / 2.5</div></div>
                 <button onclick="window.addWater()" class="bg-blue-500 text-white w-12 h-12 rounded-full font-black text-xl shadow-lg">+</button>
             </div>
-
-            <div id="micros-container" class="flex gap-3 overflow-x-auto pb-4 mb-4 snap-x no-scrollbar"></div>
-
-            <div class="bg-slate-900 p-6 rounded-3xl text-white shadow-2xl">
+            <div id="micros-container" class="flex gap-3 overflow-x-auto pb-4 mb-4 no-scrollbar"></div>
+            <div class="bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
                 <div class="grid grid-cols-3 gap-2 mb-4">
-                    <input type="number" id="in-p" placeholder="P" class="bg-slate-800 p-4 rounded-xl text-center font-bold outline-none">
-                    <input type="number" id="in-g" placeholder="G" class="bg-slate-800 p-4 rounded-xl text-center font-bold outline-none">
-                    <input type="number" id="in-l" placeholder="L" class="bg-slate-800 p-4 rounded-xl text-center font-bold outline-none">
+                    <input type="number" id="in-p" placeholder="P" class="bg-slate-800 p-4 rounded-xl text-center font-bold outline-none text-white">
+                    <input type="number" id="in-g" placeholder="G" class="bg-slate-800 p-4 rounded-xl text-center font-bold outline-none text-white">
+                    <input type="number" id="in-l" placeholder="L" class="bg-slate-800 p-4 rounded-xl text-center font-bold outline-none text-white">
                 </div>
                 <div id="micros-inputs" class="grid grid-cols-2 gap-2 mb-6"></div>
-                <button onclick="window.addFood()" class="w-full bg-blue-500 text-white p-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg">Enregistrer repas</button>
+                <button onclick="window.addFood()" class="w-full bg-blue-500 text-white p-4 rounded-xl font-black uppercase text-xs">Enregistrer repas</button>
             </div>
         </div>
 
-        <div id="sec-history" class="hidden animate-in fade-in duration-300">
-            <h2 class="text-xl font-black mb-4">Analyse Hebdomadaire</h2>
-            <div class="bg-white p-4 rounded-3xl border mb-6 shadow-sm">
-                <canvas id="calorieChart"></canvas>
-            </div>
-            <h3 class="text-xs font-black uppercase text-slate-400 mb-2">Dernières entrées</h3>
+        <div id="sec-history" class="hidden">
+            <h2 class="text-xl font-black mb-4">Analyses</h2>
+            <div class="bg-white p-4 rounded-3xl border mb-6 shadow-sm"><canvas id="calorieChart"></canvas></div>
             <div id="history-list"></div>
         </div>
 
         <div id="sec-calc" class="hidden space-y-4">
-            <h2 class="text-xl font-black mb-4">Configuration</h2>
-            <div class="bg-white p-6 rounded-3xl border text-black">
-                <p class="text-sm text-slate-500 mb-6">Tes objectifs sont calculés lors de ta première configuration.</p>
-                <button onclick="window.logout()" class="w-full bg-red-50 text-red-600 p-4 rounded-xl font-black text-xs uppercase">Se déconnecter</button>
+            <h2 class="text-xl font-black mb-4">Calculateur d'Objectifs</h2>
+            <div class="bg-white p-6 rounded-3xl border text-black space-y-3 shadow-sm">
+                <div class="flex gap-2">
+                    <input type="number" id="c-w" placeholder="Poids (kg)" class="w-1/2 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    <input type="number" id="c-h" placeholder="Taille (cm)" class="w-1/2 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                </div>
+                <input type="number" id="c-a" placeholder="Âge" class="w-full p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <select id="c-act" class="w-full p-4 rounded-xl bg-slate-50 border border-slate-100 font-bold">
+                    <option value="1.2">Sédentaire</option>
+                    <option value="1.55">Actif (Sport 3-5x)</option>
+                    <option value="1.725">Trés Actif</option>
+                </select>
+                <select id="c-goal" class="w-full p-4 rounded-xl bg-slate-50 border border-slate-100 font-bold text-blue-600">
+                    <option value="-400">Sèche (-400 kcal)</option>
+                    <option value="0">Maintien</option>
+                    <option value="400">Prise de masse (+400 kcal)</option>
+                </select>
+                <button onclick="window.runCalc()" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl shadow-lg">CALCULER MON PLAN</button>
             </div>
+            <button onclick="window.logout()" class="w-full p-4 text-red-500 font-bold uppercase text-xs">Se déconnecter</button>
         </div>
 
-        <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[280px] bg-white/80 backdrop-blur-xl border border-white/20 shadow-2xl p-2 rounded-full flex justify-around items-center text-slate-400 transition-all">
+        <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[280px] bg-white/90 backdrop-blur-xl border shadow-2xl p-2 rounded-full flex justify-around items-center text-slate-400">
             <button onclick="window.nav('tracker')" class="p-3 text-xl focus:text-blue-600">📊</button>
             <button onclick="window.nav('history')" class="p-3 text-xl focus:text-blue-600">📜</button>
             <button onclick="window.userProfile.darkMode = !window.userProfile.darkMode; window.applyUI(); window.saveData();" class="p-3 text-xl">🌓</button>
