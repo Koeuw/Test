@@ -17,7 +17,7 @@
             messagingSenderId: "845349088536",
             appId: "1:845349088536:web:9dea68916cfdc465b2826d",
             measurementId: "G-SVHDEZ1HX8"
-        };
+            };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -35,134 +35,195 @@
         });
     </script>
 </head>
-<body class="bg-slate-50 font-sans pb-24">
+<body class="bg-slate-50 font-sans pb-32">
 
-    <div id="login-screen" class="p-8 mt-20 max-w-sm mx-auto bg-white rounded-3xl shadow-xl">
-        <h2 class="text-2xl font-black mb-6">Connexion</h2>
-        <input type="email" id="email" placeholder="Email" class="w-full border p-4 rounded-xl mb-4 outline-none">
-        <input type="password" id="password" placeholder="Mot de passe" class="w-full border p-4 rounded-xl mb-6 outline-none">
-        <button onclick="login()" class="w-full bg-black text-white p-4 rounded-xl font-bold">ENTRER</button>
+    <div id="login-screen" class="p-8 mt-20 max-w-sm mx-auto bg-white rounded-3xl shadow-xl border border-slate-100">
+        <h2 class="text-3xl font-black mb-2 text-slate-800">Bonjour.</h2>
+        <p class="text-slate-400 mb-8 text-sm font-medium">Connectez-vous à votre espace privé</p>
+        <input type="email" id="email" placeholder="Email" class="w-full bg-slate-50 p-4 rounded-2xl mb-4 outline-none focus:ring-2 focus:ring-black transition-all">
+        <input type="password" id="password" placeholder="Mot de passe" class="w-full bg-slate-50 p-4 rounded-2xl mb-8 outline-none focus:ring-2 focus:ring-black transition-all">
+        <button onclick="login()" class="w-full bg-black text-white p-5 rounded-2xl font-bold tracking-tight active:scale-95 transition-all">SE CONNECTER</button>
     </div>
 
     <div id="main-container" class="hidden max-w-md mx-auto p-4">
         
         <div id="tab-tracker">
-            <h1 class="text-2xl font-black mb-6">Tracker</h1>
-            <div class="bg-white p-6 rounded-[2rem] shadow-sm mb-6 border border-slate-100 text-center">
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Calories Restantes</p>
-                <div id="cal-rem" class="text-5xl font-black text-slate-900 my-2">2000</div>
+            <header class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-black text-slate-900 italic">DAILY LOG</h1>
+                <div class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter">Live Sync</div>
+            </header>
+
+            <div class="bg-white p-8 rounded-[2.5rem] shadow-sm mb-6 border border-slate-100 text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-slate-100">
+                    <div id="progress-bar" class="h-full bg-black transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <p class="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Calories Restantes</p>
+                <div id="cal-rem" class="text-6xl font-black text-slate-900 tracking-tighter">2000</div>
             </div>
 
-            <div class="grid grid-cols-3 gap-3 mb-6">
-                <div class="bg-white p-3 rounded-2xl border border-slate-100 text-center">
-                    <p class="text-[10px] font-bold text-orange-400 uppercase">Prot</p>
-                    <div class="font-black text-slate-700"><span id="p-rem">150</span>g</div>
+            <div class="grid grid-cols-3 gap-3 mb-8">
+                <div class="bg-white p-4 rounded-3xl border border-slate-100 text-center shadow-sm">
+                    <p class="text-[9px] font-black text-orange-400 uppercase mb-1">PROTÉINES</p>
+                    <div class="font-black text-slate-800 text-xl"><span id="p-rem">150</span><span class="text-[10px] ml-0.5">g</span></div>
                 </div>
-                <div class="bg-white p-3 rounded-2xl border border-slate-100 text-center">
-                    <p class="text-[10px] font-bold text-blue-400 uppercase">Glu</p>
-                    <div class="font-black text-slate-700"><span id="g-rem">200</span>g</div>
+                <div class="bg-white p-4 rounded-3xl border border-slate-100 text-center shadow-sm">
+                    <p class="text-[9px] font-black text-blue-400 uppercase mb-1">GLUCIDES</p>
+                    <div class="font-black text-slate-800 text-xl"><span id="g-rem">200</span><span class="text-[10px] ml-0.5">g</span></div>
                 </div>
-                <div class="bg-white p-3 rounded-2xl border border-slate-100 text-center">
-                    <p class="text-[10px] font-bold text-yellow-500 uppercase">Lip</p>
-                    <div class="font-black text-slate-700"><span id="l-rem">60</span>g</div>
+                <div class="bg-white p-4 rounded-3xl border border-slate-100 text-center shadow-sm">
+                    <p class="text-[9px] font-black text-yellow-500 uppercase mb-1">LIPIDES</p>
+                    <div class="font-black text-slate-800 text-xl"><span id="l-rem">60</span><span class="text-[10px] ml-0.5">g</span></div>
                 </div>
             </div>
-            
-            <button onclick="addFood(150, 25, 5, 2)" class="w-full bg-white p-5 rounded-2xl border border-slate-200 mb-3 flex justify-between items-center active:scale-95 transition-all">
-                <span class="font-bold uppercase text-sm tracking-tight">🍗 Protéines Légères</span>
-                <span class="text-xs text-slate-400">25g P</span>
-            </button>
+
+            <div class="bg-slate-900 p-6 rounded-[2rem] text-white mb-6">
+                <h3 class="text-xs font-black uppercase tracking-widest mb-4 text-slate-400 italic">Ajout Précis</h3>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <input type="number" id="add-p" placeholder="Prot (g)" class="bg-slate-800 border-none p-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-500 text-orange-400 font-bold">
+                    <input type="number" id="add-g" placeholder="Gluc (g)" class="bg-slate-800 border-none p-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-blue-500 text-blue-400 font-bold">
+                    <input type="number" id="add-l" placeholder="Lip (g)" class="bg-slate-800 border-none p-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-yellow-500 text-yellow-400 font-bold">
+                    <input type="number" id="add-c" placeholder="Kcal" class="bg-slate-800 border-none p-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-white text-white font-bold">
+                </div>
+                <button onclick="manualAdd()" class="w-full bg-white text-black p-4 rounded-xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">Enregistrer le repas</button>
+            </div>
         </div>
 
         <div id="tab-settings" class="hidden">
-            <h1 class="text-2xl font-black mb-6">Réglages</h1>
+            <h1 class="text-2xl font-black mb-6 italic">RÉGLAGES</h1>
             
-            <div class="bg-blue-600 p-6 rounded-3xl text-white mb-6">
-                <h3 class="font-bold mb-4 italic">Calculateur de besoins</h3>
-                <div class="space-y-3">
-                    <input type="number" id="weight" placeholder="Poids (kg)" class="w-full p-3 rounded-xl text-black text-sm">
-                    <input type="number" id="height" placeholder="Taille (cm)" class="w-full p-3 rounded-xl text-black text-sm">
-                    <input type="number" id="age" placeholder="Âge" class="w-full p-3 rounded-xl text-black text-sm">
-                    <button onclick="calculateBMR()" class="w-full bg-black p-3 rounded-xl font-bold text-sm">CALCULER</button>
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm mb-6 border border-slate-100">
+                <h3 class="font-black text-[10px] uppercase tracking-widest mb-6 text-blue-500">Calculateur de métabolisme</h3>
+                <div class="space-y-4">
+                    <div class="flex gap-4">
+                        <select id="gender" class="flex-1 bg-slate-50 p-3 rounded-xl text-sm font-bold">
+                            <option value="H">HOMME</option>
+                            <option value="F">FEMME</option>
+                        </select>
+                        <input type="number" id="age" placeholder="Âge" class="w-20 bg-slate-50 p-3 rounded-xl text-sm font-bold">
+                    </div>
+                    <div class="flex gap-4">
+                        <input type="number" id="weight" placeholder="Poids (kg)" class="flex-1 bg-slate-50 p-3 rounded-xl text-sm font-bold">
+                        <input type="number" id="height" placeholder="Taille (cm)" class="flex-1 bg-slate-50 p-3 rounded-xl text-sm font-bold">
+                    </div>
+                    
+                    <label class="text-[9px] font-black text-slate-400 uppercase">Activité Sportive</label>
+                    <select id="activity" class="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold">
+                        <option value="1.2">Sédentaire (Bureau)</option>
+                        <option value="1.375">Actif (1-2 séances/sem)</option>
+                        <option value="1.55">Sportif (3-5 séances/sem)</option>
+                        <option value="1.725">Intense (Quotidien)</option>
+                        <option value="1.9">Extrême (Pro / Physique)</option>
+                    </select>
+
+                    <button onclick="calculateBMR()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-100">Recalculer mes besoins</button>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-3xl border border-slate-100 space-y-4">
-                <h3 class="font-bold text-slate-800 uppercase text-xs tracking-widest">Objectifs Manuels</h3>
-                <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Calories</label>
-                    <input type="number" id="set-cal" class="w-full border-b py-2 font-bold outline-none" value="2000">
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+                <h3 class="font-black text-[10px] uppercase tracking-widest mb-6 text-slate-400 italic">Modifier les cibles</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="text-xs font-bold text-slate-500">CALORIES</span>
+                        <input type="number" id="set-cal" class="text-right font-black w-20 outline-none" value="2000">
+                    </div>
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="text-xs font-bold text-slate-500 uppercase">Protéines (g)</span>
+                        <input type="number" id="set-p" class="text-right font-black w-16 outline-none text-orange-500" value="150">
+                    </div>
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="text-xs font-bold text-slate-500 uppercase">Glucides (g)</span>
+                        <input type="number" id="set-g" class="text-right font-black w-16 outline-none text-blue-500" value="200">
+                    </div>
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="text-xs font-bold text-slate-500 uppercase">Lipides (g)</span>
+                        <input type="number" id="set-l" class="text-right font-black w-16 outline-none text-yellow-600" value="60">
+                    </div>
+                    <button onclick="applySettings()" class="w-full bg-slate-900 text-white p-4 rounded-2xl font-black text-xs uppercase tracking-widest">Appliquer</button>
                 </div>
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400">PROT (g)</label>
-                        <input type="number" id="set-p" class="w-full border-b py-2 font-bold outline-none text-orange-500" value="150">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400">GLU (g)</label>
-                        <input type="number" id="set-g" class="w-full border-b py-2 font-bold outline-none text-blue-500" value="200">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400">LIP (g)</label>
-                        <input type="number" id="set-l" class="w-full border-b py-2 font-bold outline-none text-yellow-600" value="60">
-                    </div>
-                </div>
-                <button onclick="applySettings()" class="w-full bg-slate-100 p-4 rounded-xl font-bold text-slate-700 text-sm">APPLIQUER</button>
             </div>
             
-            <button onclick="logout()" class="w-full mt-8 text-red-400 font-bold text-xs uppercase tracking-widest">Déconnexion</button>
+            <button onclick="logout()" class="w-full mt-8 text-slate-300 font-bold text-[10px] uppercase tracking-[0.3em]">Déconnexion</button>
         </div>
     </div>
 
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 flex justify-around items-center max-w-md mx-auto">
-        <button onclick="showTab('tracker')" class="flex flex-col items-center gap-1">
-            <span class="text-xl">📊</span>
-            <span class="text-[10px] font-bold uppercase">Suivi</span>
+    <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[280px] bg-white/80 backdrop-blur-lg border border-slate-100 p-2 rounded-full shadow-2xl flex justify-around items-center z-50">
+        <button onclick="showTab('tracker')" id="btn-tracker" class="p-3 rounded-full bg-slate-900 text-white transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+            </svg>
         </button>
-        <button onclick="showTab('settings')" class="flex flex-col items-center gap-1">
-            <span class="text-xl">⚙️</span>
-            <span class="text-[10px] font-bold uppercase">Réglages</span>
+        <button onclick="showTab('settings')" id="btn-settings" class="p-3 rounded-full text-slate-400 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+            </svg>
         </button>
     </nav>
 
     <script>
+        let totalDailyCal = 2000;
+
         function showTab(tab) {
             document.getElementById('tab-tracker').classList.toggle('hidden', tab !== 'tracker');
             document.getElementById('tab-settings').classList.toggle('hidden', tab !== 'settings');
+            document.getElementById('btn-tracker').classList.toggle('bg-slate-900', tab === 'tracker');
+            document.getElementById('btn-tracker').classList.toggle('text-white', tab === 'tracker');
+            document.getElementById('btn-settings').classList.toggle('bg-slate-900', tab === 'settings');
+            document.getElementById('btn-settings').classList.toggle('text-white', tab === 'settings');
         }
 
-        function addFood(cal, p, g, l) {
-            document.getElementById('cal-rem').innerText -= cal;
+        function manualAdd() {
+            const p = parseInt(document.getElementById('add-p').value) || 0;
+            const g = parseInt(document.getElementById('add-g').value) || 0;
+            const l = parseInt(document.getElementById('add-l').value) || 0;
+            const c = parseInt(document.getElementById('add-c').value) || (p*4 + g*4 + l*9);
+
+            document.getElementById('cal-rem').innerText -= c;
             document.getElementById('p-rem').innerText -= p;
             document.getElementById('g-rem').innerText -= g;
             document.getElementById('l-rem').innerText -= l;
-        }
 
-        function applySettings() {
-            document.getElementById('cal-rem').innerText = document.getElementById('set-cal').value;
-            document.getElementById('p-rem').innerText = document.getElementById('set-p').value;
-            document.getElementById('g-rem').innerText = document.getElementById('set-g').value;
-            document.getElementById('l-rem').innerText = document.getElementById('set-l').value;
-            showTab('tracker');
+            // Réinitialiser les champs
+            ['add-p', 'add-g', 'add-l', 'add-c'].forEach(id => document.getElementById(id).value = "");
+            updateProgress();
         }
 
         function calculateBMR() {
-            const w = document.getElementById('weight').value;
-            const h = document.getElementById('height').value;
-            const a = document.getElementById('age').value;
+            const w = parseFloat(document.getElementById('weight').value);
+            const h = parseFloat(document.getElementById('height').value);
+            const a = parseInt(document.getElementById('age').value);
+            const gender = document.getElementById('gender').value;
+            const activity = parseFloat(document.getElementById('activity').value);
             
-            if(!w || !h || !a) return alert("Remplis tout !");
+            if(!w || !h || !a) return alert("Données manquantes");
             
-            // Formule simplifiée (Mifflin-St Jeor pour homme)
-            const bmr = Math.round((10 * w) + (6.25 * h) - (5 * a) + 5);
-            const maintenance = Math.round(bmr * 1.4); // Activité modérée
+            // Mifflin-St Jeor
+            let bmr = (10 * w) + (6.25 * h) - (5 * a);
+            bmr = (gender === 'H') ? bmr + 5 : bmr - 161;
             
-            document.getElementById('set-cal').value = maintenance;
-            document.getElementById('set-p').value = Math.round(w * 1.8);
-            document.getElementById('set-l').value = Math.round(w * 0.8);
-            document.getElementById('set-g').value = Math.round((maintenance - (w*1.8*4 + w*0.8*9)) / 4);
+            const tdee = Math.round(bmr * activity);
             
-            alert("Calcul terminé ! Appuie sur APPLIQUER.");
+            document.getElementById('set-cal').value = tdee;
+            document.getElementById('set-p').value = Math.round(w * 2); // 2g/kg
+            document.getElementById('set-l').value = Math.round(w * 0.9); // 0.9g/kg
+            document.getElementById('set-g').value = Math.round((tdee - (w*2*4 + w*0.9*9)) / 4);
+            
+            alert("Besoins calculés avec succès !");
+        }
+
+        function applySettings() {
+            totalDailyCal = parseInt(document.getElementById('set-cal').value);
+            document.getElementById('cal-rem').innerText = totalDailyCal;
+            document.getElementById('p-rem').innerText = document.getElementById('set-p').value;
+            document.getElementById('g-rem').innerText = document.getElementById('set-g').value;
+            document.getElementById('l-rem').innerText = document.getElementById('set-l').value;
+            updateProgress();
+            showTab('tracker');
+        }
+
+        function updateProgress() {
+            const rem = parseInt(document.getElementById('cal-rem').innerText);
+            const percent = Math.min(100, Math.max(0, ((totalDailyCal - rem) / totalDailyCal) * 100));
+            document.getElementById('progress-bar').style.width = percent + '%';
         }
     </script>
 </body>
