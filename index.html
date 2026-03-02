@@ -10,9 +10,6 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ==========================================
-        // 1. CONFIGURATION FIREBASE (METS TES CLÉS ICI)
-        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDd-9vJ_5q58hF6RIdM4Fsx6VIQcNe9zNc",
             authDomain: "test-bb0ab.firebaseapp.com",
@@ -21,39 +18,37 @@
             messagingSenderId: "845349088536",
             appId: "1:845349088536:web:9dea68916cfdc465b2826d",
             measurementId: "G-SVHDEZ1HX8"
-            };
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // ==========================================
-        // 2. BASE DE DONNÉES COMPLÈTE (MACROS + MICROS)
-        // ==========================================
+        // Liste complète des nutriments pour la gestion automatique
+        const MICROS_KEYS = [
+            'fiber', 'omg3', 'omg6', 'vitA', 'vitD', 'vitE', 'vitK', 'vitC', 
+            'b1', 'b2', 'b3', 'b5', 'b6', 'b8', 'b9', 'b12',
+            'ca', 'mg', 'k', 'na', 'phos', 'cl', 'fe', 'zn', 'cu', 'iode', 'sel', 'mn', 'cr', 'mo', 'fluor'
+        ];
+
         window.userProfile = { 
             darkMode: false, lastReset: new Date().toLocaleDateString(),
-            // Objectifs
-            goalCal: 2000, goalP: 150, goalG: 200, goalL: 60, 
-            goalWater: 2.5, goalFiber: 30, goalOmega: 2,
-            goalVitC: 110, goalVitD: 15, goalIron: 15, goalMag: 300, goalCalc: 1000, goalZinc: 11,
-            // Consommation Actuelle
-            currentCal: 2000, currentP: 150, currentG: 200, currentL: 60,
-            currentWater: 0, currentFiber: 0, currentOmega: 0,
-            currentVitC: 0, currentVitD: 0, currentIron: 0, currentMag: 0, currentCalc: 0, currentZinc: 0
+            goalCal: 2000, goalP: 150, goalG: 200, goalL: 60, goalWater: 2.5,
+            currentCal: 2000, currentP: 150, currentG: 200, currentL: 60, currentWater: 0
         };
+        // Initialisation des micros à 0
+        MICROS_KEYS.forEach(k => window.userProfile[k] = 0);
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                try {
-                    const docSnap = await getDoc(doc(db, "users", user.uid));
-                    if (docSnap.exists()) {
-                        window.userProfile = { ...window.userProfile, ...docSnap.data() };
-                        checkDailyReset();
-                    }
-                    applyUI();
-                    document.getElementById('login-screen').classList.add('hidden');
-                    document.getElementById('main-app').classList.remove('hidden');
-                } catch (e) { console.error("Erreur Firestore:", e); }
+                const docSnap = await getDoc(doc(db, "users", user.uid));
+                if (docSnap.exists()) {
+                    window.userProfile = { ...window.userProfile, ...docSnap.data() };
+                    checkDailyReset();
+                }
+                applyUI();
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('main-app').classList.add('hidden');
@@ -68,10 +63,7 @@
                 window.userProfile.currentG = window.userProfile.goalG;
                 window.userProfile.currentL = window.userProfile.goalL;
                 window.userProfile.currentWater = 0;
-                window.userProfile.currentFiber = 0; window.userProfile.currentOmega = 0;
-                window.userProfile.currentVitC = 0; window.userProfile.currentVitD = 0;
-                window.userProfile.currentIron = 0; window.userProfile.currentMag = 0; 
-                window.userProfile.currentCalc = 0; window.userProfile.currentZinc = 0;
+                MICROS_KEYS.forEach(k => window.userProfile[k] = 0);
                 window.userProfile.lastReset = today;
                 saveData();
             }
@@ -82,38 +74,29 @@
             if (user) await setDoc(doc(db, "users", user.uid), window.userProfile);
         };
 
-        window.login = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Email ou mot de passe incorrect."));
+        window.login = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Erreur de connexion"));
         window.logout = () => signOut(auth);
-        
-        window.nav = (target) => {
-            document.getElementById('sec-tracker').classList.toggle('hidden', target !== 'tracker');
-            document.getElementById('sec-calc').classList.toggle('hidden', target !== 'calc');
+        window.nav = (t) => {
+            document.getElementById('sec-tracker').classList.toggle('hidden', t !== 'tracker');
+            document.getElementById('sec-calc').classList.toggle('hidden', t !== 'calc');
         };
 
-        window.addWater = () => {
-            window.userProfile.currentWater += 0.25;
-            applyUI(); saveData();
-        };
+        window.addWater = () => { window.userProfile.currentWater += 0.25; applyUI(); saveData(); };
 
         window.addFood = () => {
             const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
+            const p = getVal('in-p'), g = getVal('in-g'), l = getVal('in-l');
             
-            const p = getVal('in-p'); const g = getVal('in-g'); const l = getVal('in-l');
             window.userProfile.currentCal -= (p*4 + g*4 + l*9);
             window.userProfile.currentP -= p; window.userProfile.currentG -= g; window.userProfile.currentL -= l;
             
-            window.userProfile.currentFiber += getVal('in-fib');
-            window.userProfile.currentOmega += getVal('in-omg');
-            window.userProfile.currentVitC += getVal('in-vitc');
-            window.userProfile.currentVitD += getVal('in-vitd');
-            window.userProfile.currentIron += getVal('in-iron');
-            window.userProfile.currentMag += getVal('in-mag');
-            window.userProfile.currentCalc += getVal('in-calc');
-            window.userProfile.currentZinc += getVal('in-zinc');
+            MICROS_KEYS.forEach(k => {
+                window.userProfile[k] += getVal('in-' + k);
+                document.getElementById('in-' + k).value = ""; // Clear
+            });
 
+            ['in-p','in-g','in-l'].forEach(id => document.getElementById(id).value = "");
             applyUI(); saveData();
-            
-            ['in-p','in-g','in-l','in-fib','in-omg','in-vitc','in-vitd','in-iron','in-mag','in-calc','in-zinc'].forEach(id => document.getElementById(id).value = "");
         };
 
         window.runCalc = () => {
@@ -121,28 +104,15 @@
             const h = parseFloat(document.getElementById('c-h').value);
             const a = parseInt(document.getElementById('c-a').value);
             const act = parseFloat(document.getElementById('c-act').value);
-            const goalModifier = parseInt(document.getElementById('c-goal').value); // L'objectif (Prise de masse, etc.)
-            
+            const goal = parseInt(document.getElementById('c-goal').value);
             if(!w || !h || !a) return;
 
-            // 1. Calcul du métabolisme de base + activité
-            let tdee = Math.round(((10 * w) + (6.25 * h) - (5 * a) + 5) * act);
-            
-            // 2. Ajout/Retrait selon l'objectif (Perte = -400, Prise = +400)
-            tdee += goalModifier;
-
-            window.userProfile.goalCal = tdee; 
-            window.userProfile.currentCal = tdee;
-            
-            // 3. Ajustement des protéines (2.2g/kg en perte de poids pour protéger le muscle, sinon 2.0g)
-            const protRatio = goalModifier < 0 ? 2.2 : 2.0;
-            window.userProfile.goalP = Math.round(w * protRatio); 
-            window.userProfile.currentP = Math.round(w * protRatio);
-            
-            window.userProfile.goalL = Math.round(w * 0.9); 
-            window.userProfile.currentL = Math.round(w * 0.9);
-            
-            window.userProfile.goalG = Math.round((tdee - (window.userProfile.goalP*4 + window.userProfile.goalL*9))/4); 
+            let tdee = Math.round(((10 * w) + (6.25 * h) - (5 * a) + 5) * act) + goal;
+            window.userProfile.goalCal = tdee; window.userProfile.currentCal = tdee;
+            const protRatio = goal < 0 ? 2.2 : 2.0;
+            window.userProfile.goalP = Math.round(w * protRatio); window.userProfile.currentP = window.userProfile.goalP;
+            window.userProfile.goalL = Math.round(w * 0.9); window.userProfile.currentL = window.userProfile.goalL;
+            window.userProfile.goalG = Math.round((tdee - (window.userProfile.goalP*4 + window.userProfile.goalL*9))/4);
             window.userProfile.currentG = window.userProfile.goalG;
             
             applyUI(); saveData(); nav('tracker');
@@ -151,17 +121,17 @@
         function applyUI() {
             const p = window.userProfile;
             document.body.className = p.darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900";
-            
             document.getElementById('d-cal').innerText = Math.round(p.currentCal);
             document.getElementById('d-p').innerText = Math.round(p.currentP);
             document.getElementById('d-g').innerText = Math.round(p.currentG);
             document.getElementById('d-l').innerText = Math.round(p.currentL);
             document.getElementById('d-water').innerText = p.currentWater.toFixed(2);
             
-            document.getElementById('d-fib').innerText = `${p.currentFiber} / ${p.goalFiber}g`;
-            document.getElementById('d-omg').innerText = `${p.currentOmega} / ${p.goalOmega}g`;
-            document.getElementById('d-iron').innerText = `${p.currentIron} / ${p.goalIron}mg`;
-            document.getElementById('d-mag').innerText = `${p.currentMag} / ${p.goalMag}mg`;
+            // Update Micros display
+            MICROS_KEYS.forEach(k => {
+                const el = document.getElementById('d-' + k);
+                if(el) el.innerText = p[k].toFixed(1);
+            });
         }
     </script>
 </head>
@@ -177,102 +147,123 @@
     <div id="main-app" class="hidden max-w-md mx-auto p-4">
         
         <div id="sec-tracker">
-            <div class="bg-white border p-6 rounded-3xl shadow-sm mb-4 text-center text-black">
-                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Calories Restantes</p>
+            <div class="bg-white border p-6 rounded-[2.5rem] shadow-sm mb-4 text-center text-black">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Calories Restantes</p>
                 <div id="d-cal" class="text-6xl font-black italic">2000</div>
                 <div class="flex justify-around mt-6 border-t pt-4">
-                    <div><p class="text-[10px] text-orange-400 font-bold uppercase">Prot</p><div class="font-black text-lg"><span id="d-p">150</span>g</div></div>
-                    <div><p class="text-[10px] text-blue-400 font-bold uppercase">Gluc</p><div class="font-black text-lg"><span id="d-g">200</span>g</div></div>
-                    <div><p class="text-[10px] text-yellow-500 font-bold uppercase">Lipi</p><div class="font-black text-lg"><span id="d-l">60</span>g</div></div>
+                    <div><p class="text-[10px] text-orange-400 font-bold uppercase">Prot</p><div class="font-black text-lg"><span id="d-p">0</span>g</div></div>
+                    <div><p class="text-[10px] text-blue-400 font-bold uppercase">Gluc</p><div class="font-black text-lg"><span id="d-g">0</span>g</div></div>
+                    <div><p class="text-[10px] text-yellow-500 font-bold uppercase">Lipi</p><div class="font-black text-lg"><span id="d-l">0</span>g</div></div>
                 </div>
             </div>
 
-            <div class="bg-blue-50 border border-blue-100 p-4 rounded-3xl mb-4 flex justify-between items-center text-blue-900">
-                <div>
-                    <p class="text-[10px] font-black uppercase tracking-widest">Hydratation (L)</p>
-                    <div class="text-2xl font-black"><span id="d-water">0.00</span> / 2.50 L</div>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-blue-500 p-4 rounded-3xl text-white flex justify-between items-center">
+                    <div><p class="text-[10px] font-bold uppercase">Eau (L)</p><div id="d-water" class="text-xl font-black">0.00</div></div>
+                    <button onclick="addWater()" class="bg-white/20 w-8 h-8 rounded-full font-bold">+</button>
                 </div>
-                <button onclick="addWater()" class="bg-blue-500 text-white w-12 h-12 rounded-full font-black text-xl shadow-lg active:scale-90 transition-all">+</button>
-            </div>
-
-            <div class="flex gap-3 overflow-x-auto pb-4 mb-4 snap-x">
-                <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center">
-                    <p class="text-[10px] font-bold text-green-600 uppercase">Fibres</p>
-                    <div id="d-fib" class="font-black">0 / 30g</div>
-                </div>
-                <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center">
-                    <p class="text-[10px] font-bold text-teal-600 uppercase">Oméga-3/6</p>
-                    <div id="d-omg" class="font-black">0 / 2g</div>
-                </div>
-                <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center">
-                    <p class="text-[10px] font-bold text-red-500 uppercase">Fer</p>
-                    <div id="d-iron" class="font-black">0 / 15mg</div>
-                </div>
-                <div class="min-w-[120px] bg-white border p-4 rounded-2xl text-black snap-center">
-                    <p class="text-[10px] font-bold text-purple-500 uppercase">Magnésium</p>
-                    <div id="d-mag" class="font-black">0 / 300mg</div>
+                <div class="bg-green-500 p-4 rounded-3xl text-white">
+                    <p class="text-[10px] font-bold uppercase">Fibres (g)</p>
+                    <div id="d-fiber" class="text-xl font-black">0</div>
                 </div>
             </div>
 
-            <div class="bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
-                <h3 class="text-xs font-black uppercase tracking-widest mb-4 text-slate-400">1. Macros (g)</h3>
+            <div class="flex gap-2 overflow-x-auto pb-4 mb-4 no-scrollbar">
+                <div class="min-w-[100px] bg-white border p-3 rounded-2xl text-center text-black">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Vit C</p>
+                    <div id="d-vitC" class="font-black">0</div>
+                </div>
+                <div class="min-w-[100px] bg-white border p-3 rounded-2xl text-center text-black">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Fer</p>
+                    <div id="d-fe" class="font-black">0</div>
+                </div>
+                <div class="min-w-[100px] bg-white border p-3 rounded-2xl text-center text-black">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Magnés.</p>
+                    <div id="d-mg" class="font-black">0</div>
+                </div>
+                <div class="min-w-[100px] bg-white border p-3 rounded-2xl text-center text-black">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Zinc</p>
+                    <div id="d-zn" class="font-black">0</div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 p-6 rounded-[2.5rem] text-white shadow-2xl">
+                <h3 class="text-[10px] font-black uppercase text-slate-500 mb-4">Ajouter un repas</h3>
                 <div class="grid grid-cols-3 gap-2 mb-4">
                     <input type="number" id="in-p" placeholder="Prot" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
                     <input type="number" id="in-g" placeholder="Gluc" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
                     <input type="number" id="in-l" placeholder="Lipi" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
                 </div>
                 
-                <h3 class="text-xs font-black uppercase tracking-widest mb-4 text-slate-400">2. Santé & Micros</h3>
-                <div class="grid grid-cols-2 gap-2 mb-6 h-32 overflow-y-auto pr-2">
-                    <input type="number" id="in-fib" placeholder="Fibres (g)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                    <input type="number" id="in-omg" placeholder="Oméga (g)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                    <input type="number" id="in-vitc" placeholder="Vit C (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                    <input type="number" id="in-vitd" placeholder="Vit D (µg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                    <input type="number" id="in-iron" placeholder="Fer (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                    <input type="number" id="in-mag" placeholder="Magnésium (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                    <input type="number" id="in-calc" placeholder="Calcium (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
-                    <input type="number" id="in-zinc" placeholder="Zinc (mg)" class="bg-slate-800 p-3 rounded-xl text-sm outline-none">
+                <div class="h-48 overflow-y-auto pr-2 space-y-4 mb-4 custom-scroll">
+                    <div>
+                        <p class="text-[9px] font-bold uppercase text-blue-400 mb-2">Vitamines & Fibres</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="number" id="in-fiber" placeholder="Fibres" class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-omg3" placeholder="Omg3" class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-vitA" placeholder="Vit A" class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-vitC" placeholder="Vit C" class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-vitD" placeholder="Vit D" class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-b12" placeholder="B12" class="bg-slate-800 p-2 rounded-lg text-xs">
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold uppercase text-orange-400 mb-2">Minéraux essentiels</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="number" id="in-ca" placeholder="Calc." class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-mg" placeholder="Mag." class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-fe" placeholder="Fer" class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-zn" placeholder="Zinc" class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-k" placeholder="Potas." class="bg-slate-800 p-2 rounded-lg text-xs">
+                            <input type="number" id="in-na" placeholder="Sod." class="bg-slate-800 p-2 rounded-lg text-xs">
+                        </div>
+                    </div>
                 </div>
-
-                <button onclick="addFood()" class="w-full bg-white text-black p-4 rounded-xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">Enregistrer le repas</button>
+                <button onclick="addFood()" class="w-full bg-white text-black p-4 rounded-2xl font-black text-xs uppercase active:scale-95 transition-all">Enregistrer le repas</button>
             </div>
         </div>
 
         <div id="sec-calc" class="hidden space-y-4">
-            <h2 class="text-xl font-black mb-4">Calculateur & Objectifs</h2>
-            <div class="bg-white p-6 rounded-3xl border text-black space-y-3">
+            <h2 class="text-2xl font-black italic">Paramètres</h2>
+            <div class="bg-white p-6 rounded-[2.5rem] border text-black space-y-3">
                 <div class="flex gap-2">
-                    <input type="number" id="c-w" placeholder="Poids (kg)" class="w-1/2 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <input type="number" id="c-h" placeholder="Taille (cm)" class="w-1/2 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    <input type="number" id="c-w" placeholder="Poids (kg)" class="w-1/2 p-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold">
+                    <input type="number" id="c-h" placeholder="Taille (cm)" class="w-1/2 p-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold">
                 </div>
-                <input type="number" id="c-a" placeholder="Âge" class="w-full p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <input type="number" id="c-a" placeholder="Âge" class="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold">
                 
-                <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-4 mb-1">Activité</h3>
-                <select id="c-act" class="w-full p-4 rounded-xl bg-slate-50 border border-slate-100 font-bold">
-                    <option value="1.2">Sédentaire (Bureau, pas de sport)</option>
-                    <option value="1.375">Léger (Sport 1-2x/semaine)</option>
-                    <option value="1.55">Modéré (Sport 3-5x/semaine)</option>
-                    <option value="1.725">Actif (Sport 6-7x/semaine)</option>
-                    <option value="1.9">Extrême (Travail physique + Sport)</option>
+                <p class="text-[10px] font-black uppercase text-slate-400 pt-2">Niveau de sport</p>
+                <select id="c-act" class="w-full p-4 rounded-2xl bg-slate-50 font-bold">
+                    <option value="1.2">Sédentaire</option>
+                    <option value="1.375">Léger (1-2x/sem)</option>
+                    <option value="1.55">Modéré (3-4x/sem)</option>
+                    <option value="1.725">Actif (5-6x/sem)</option>
+                    <option value="1.9">Élite (7x+/sem)</option>
                 </select>
 
-                <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-4 mb-1">Objectif</h3>
-                <select id="c-goal" class="w-full p-4 rounded-xl bg-slate-50 border border-slate-100 font-bold text-blue-600">
-                    <option value="-400">Perte de poids (-400 kcal / Sèche)</option>
-                    <option value="0">Maintien (Santé / Recomposition)</option>
-                    <option value="400">Prise de masse (+400 kcal / Volume)</option>
+                <p class="text-[10px] font-black uppercase text-slate-400 pt-2">Objectif final</p>
+                <select id="c-goal" class="w-full p-4 rounded-2xl bg-blue-600 text-white font-bold shadow-lg">
+                    <option value="-400">Sèche / Perte de poids</option>
+                    <option value="0">Maintien / Santé</option>
+                    <option value="400">Prise de masse / Muscle</option>
                 </select>
 
-                <button onclick="runCalc()" class="w-full p-4 mt-4 bg-blue-600 text-white font-black rounded-xl active:scale-95 transition-all">GÉNÉRER MON PLAN</button>
+                <button onclick="runCalc()" class="w-full p-4 mt-4 bg-black text-white font-black rounded-2xl">RECALCULER MON PLAN</button>
             </div>
-            <button onclick="logout()" class="w-full text-slate-400 font-bold text-xs uppercase pt-4">Déconnexion</button>
+            <button onclick="logout()" class="w-full text-slate-400 font-bold text-[10px] uppercase pt-4">Déconnexion</button>
         </div>
 
-        <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[220px] bg-white/90 backdrop-blur-md border shadow-2xl p-2 rounded-full flex justify-around items-center text-black">
-            <button onclick="nav('tracker')" class="p-3 text-xl hover:bg-slate-100 rounded-full transition">📊</button>
-            <button onclick="window.userProfile.darkMode = !window.userProfile.darkMode; applyUI(); saveData();" class="p-3 text-xl hover:bg-slate-100 rounded-full transition">🌓</button>
-            <button onclick="nav('calc')" class="p-3 text-xl hover:bg-slate-100 rounded-full transition">⚙️</button>
+        <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-56 bg-white/80 backdrop-blur-xl border shadow-2xl p-2 rounded-full flex justify-around items-center text-black">
+            <button onclick="nav('tracker')" class="p-3 text-xl">📊</button>
+            <button onclick="window.userProfile.darkMode = !window.userProfile.darkMode; applyUI(); saveData();" class="p-3 text-xl">🌓</button>
+            <button onclick="nav('calc')" class="p-3 text-xl">⚙️</button>
         </nav>
     </div>
+
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
 </body>
 </html>
